@@ -4,6 +4,7 @@ const cors = require("cors");
 
 const bookingsRoutes = require("./routes/bookings.routes");
 const jobsRoutes = require("./routes/jobs.routes"); 
+const mechanicsRoutes = require("./routes/mechanics.routes");
 
 const app = express();
 
@@ -14,5 +15,6 @@ app.get("/health", (req, res) => res.json({ ok: true }));
 
 app.use("/api/bookings", bookingsRoutes);
 app.use("/api/jobs", jobsRoutes); 
+app.use("/api/mechanics", mechanicsRoutes);
 
 module.exports = { app };
