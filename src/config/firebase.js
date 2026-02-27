@@ -1,26 +1,17 @@
-// src/config/firebase.js
 const admin = require("firebase-admin");
-const path = require("path");
+const serviceAccount = require("../../serviceAccountKey.json");
 
-function initFirebase() {
-  if (admin.apps.length) return;
-
-  const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (!serviceAccountPath) {
-    throw new Error("Missing FIREBASE_SERVICE_ACCOUNT in .env");
-  }
-
-  const resolvedPath = path.resolve(serviceAccountPath);
-  // eslint-disable-next-line import/no-dynamic-require, global-require
-  const serviceAccount = require(resolvedPath);
-
+if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
+
+    // VERY IMPORTANT (replace with your real project id)
+    storageBucket: `${serviceAccount.project_id}.appspot.com`,
   });
 }
 
-initFirebase();
-
+const auth = admin.auth();
 const db = admin.firestore();
+const bucket = admin.storage().bucket();
 
-module.exports = { admin, db };
+module.exports = { admin, auth, db, bucket };
