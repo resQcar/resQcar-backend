@@ -9,6 +9,7 @@ app.use(express.json());
 app.get("/", (req, res) => res.send("resQcar backend running ✅"));
 
 app.use("/api/auth", require("./routes/auth.routes"));
+app.use("/api/users", require("./routes/users.routes")); // ✅ ADD THIS
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
