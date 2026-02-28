@@ -138,6 +138,36 @@ async function getMechanicProfile(req, res) {
   }
 }
 
+async function updateMechanicAvailability(req, res) {
+  try {
+    const { mechanicId, isAvailable, isOnline } = req.body;
+
+    if (!mechanicId) {
+      return res.status(400).json({ error: "mechanicId is required" });
+    }
+
+    // at least one field must be provided
+    const hasIsAvailable = typeof isAvailable === "boolean";
+    const hasIsOnline = typeof isOnline === "boolean";
+
+    if (!hasIsAvailable && !hasIsOnline) {
+      return res.status(400).json({
+        error: "Provide isAvailable and/or isOnline as boolean",
+      });
+    }
+
+    const updateData = { updatedAt: new Date().toISOString() };
+    if (hasIsAvailable) updateData.isAvailable = isAvailable;
+    if (hasIsOnline) updateData.isOnline = isOnline;
+
+    await db.collection("mechanics").doc(mechanicId).set(updateData, { merge: true });
+
+    return res.json({ ok: true, mechanicId, ...updateData });
+  } catch (err) {
+    console.error("updateMechanicAvailability error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+}
 
 // EXPORTS
 
@@ -145,4 +175,5 @@ module.exports = {
   getAvailableMechanics,
   getNearbyMechanics,
   getMechanicProfile,
+  updateMechanicAvailability, 
 };
