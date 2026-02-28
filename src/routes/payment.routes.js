@@ -5,5 +5,6 @@ const paymentController = require('../controllers/payment.controller');
 router.post('/create-intent', paymentController.createPaymentIntent);
 router.post('/confirm', paymentController.confirmPayment);
 router.get('/:id/status', paymentController.getPaymentStatus);
+router.get('/history', paymentController.getPaymentHistory);
 
 module.exports = router;
