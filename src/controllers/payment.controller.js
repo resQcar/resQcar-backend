@@ -70,3 +70,28 @@ exports.getPaymentStatus = async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 };
+
+exports.getPaymentHistory = async (req, res) => {
+    try {
+        
+        const payments = await stripe.paymentIntents.list({
+            limit: 10,
+        });
+
+        res.status(200).json({
+            success: true,
+            count: payments.data.length,
+            history: payments.data.map(payment => ({
+                id: payment.id,
+                amount: payment.amount,
+                currency: payment.currency,
+                status: payment.status,
+                date: new Date(payment.created * 1000).toLocaleString()
+            })),
+            message: "Payment history retrieved successfully"
+        });
+    } catch (error) {
+        console.error("Stripe Error:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
