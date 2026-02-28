@@ -160,3 +160,54 @@ module.exports = {
   register,
   login,
 };
+
+// ---------- SELECT USER TYPE ----------
+async function selectUserType(req, res) {
+  try {
+    const uid = req.user?.uid;
+    if (!uid) return res.status(401).json({ message: "Unauthorized." });
+
+    let { userType } = req.body;
+
+    if (!userType) {
+      return res.status(400).json({ message: "userType is required (customer/mechanic)." });
+    }
+
+    userType = String(userType).trim().toLowerCase();
+    const allowed = ["customer", "mechanic"];
+
+    if (!allowed.includes(userType)) {
+      return res.status(400).json({ message: "Invalid userType. Use 'customer' or 'mechanic'." });
+    }
+
+    // keep existing claims and update userType
+    const userRecord = await admin.auth().getUser(uid);
+    const existingClaims = userRecord.customClaims || {};
+
+    await admin.auth().setCustomUserClaims(uid, {
+      ...existingClaims,
+      userType,
+    });
+
+    return res.status(200).json({
+      message: "User type updated successfully.",
+      user: {
+        uid,
+        email: userRecord.email,
+        fullName: userRecord.displayName || null,
+        userType,
+      },
+      note: "Login again to get a new token containing updated userType claim.",
+    });
+  } catch (err) {
+    return res.status(500).json({
+      message: "Failed to update user type.",
+      error: String(err?.message || err),
+    });
+  }
+}
+module.exports = {
+  register,
+  login,
+  selectUserType,
+};
