@@ -169,6 +169,66 @@ async function updateMechanicAvailability(req, res) {
   }
 }
 
+
+async function updateMechanicProfile(req, res) {
+  try {
+    const {
+      mechanicId,
+      name,
+      phone,
+      specializations,
+      location,
+      garageName,
+      profileImageUrl,
+    } = req.body;
+
+    if (!mechanicId) {
+      return res.status(400).json({ error: "mechanicId is required" });
+    }
+
+    // Build update object only from provided fields
+    const updateData = { updatedAt: new Date().toISOString() };
+
+    if (typeof name === "string") updateData.name = name.trim();
+    if (typeof phone === "string") updateData.phone = phone.trim();
+    if (typeof garageName === "string") updateData.garageName = garageName.trim();
+    if (typeof profileImageUrl === "string") updateData.profileImageUrl = profileImageUrl.trim();
+
+    // Specializations must be array of strings
+    if (Array.isArray(specializations)) {
+      updateData.specializations = specializations
+        .filter((x) => typeof x === "string")
+        .map((x) => x.trim())
+        .filter(Boolean);
+    }
+
+    // Location must be object with numeric lat/lng
+    if (location && typeof location === "object") {
+      const lat = Number(location.lat);
+      const lng = Number(location.lng);
+
+      if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+        updateData.location = { lat, lng };
+      } else {
+        return res.status(400).json({ error: "location.lat and location.lng must be numbers" });
+      }
+    }
+
+    // Prevent empty update (only mechanicId provided)
+    const keys = Object.keys(updateData);
+    if (keys.length === 1) {
+      return res.status(400).json({ error: "No valid fields to update" });
+    }
+
+    await db.collection("mechanics").doc(mechanicId).set(updateData, { merge: true });
+
+    return res.json({ ok: true, mechanicId, updated: updateData });
+  } catch (err) {
+    console.error("updateMechanicProfile error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+}
+
 // EXPORTS
 
 module.exports = {
@@ -176,4 +236,5 @@ module.exports = {
   getNearbyMechanics,
   getMechanicProfile,
   updateMechanicAvailability, 
+  updateMechanicProfile,
 };
