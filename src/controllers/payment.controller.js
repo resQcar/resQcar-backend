@@ -174,3 +174,29 @@ exports.submitRating = async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 };
+
+exports.getMechanicRatings = async (req, res) => {
+    try {
+        const { id } = req.params; 
+
+        if (!id) {
+            return res.status(400).json({ success: false, message: "Mechanic ID is required" });
+        }
+
+        const mockRatings = [
+            { customerName: "Amara", rating: 5, comment: "Excellent work!", date: "2024-03-01" },
+            { customerName: "Kasun", rating: 4, comment: "Very professional service.", date: "2024-02-28" }
+        ];
+
+        res.status(200).json({
+            success: true,
+            mechanicId: id,
+            averageRating: 4.5,
+            totalReviews: mockRatings.length,
+            reviews: mockRatings,
+            message: "Mechanic ratings retrieved successfully"
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
