@@ -169,11 +169,73 @@ async function updateMechanicAvailability(req, res) {
   }
 }
 
+// mechanic specializations
+async function getMechanicSpecializations(req, res) {
+  try {
+    const { id } = req.params;
+
+    const doc = await db.collection("mechanics").doc(id).get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ error: "Mechanic not found" });
+    }
+
+    const mechanic = doc.data();
+
+    return res.json({
+      mechanicId: id,
+      specializations: mechanic.specializations || [],
+    });
+
+  } catch (err) {
+    console.error("getMechanicSpecializations error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+}
+async function updateMechanicProfile(req, res) {
+  try {
+    const { mechanicId, name, phone, location, specializations } = req.body;
+
+    if (!mechanicId) {
+      return res.status(400).json({ error: "mechanicId is required" });
+    }
+
+    const updateData = { updatedAt: new Date().toISOString() };
+
+    if (typeof name === "string") updateData.name = name;
+    if (typeof phone === "string") updateData.phone = phone;
+
+    if (
+      location &&
+      typeof location.lat === "number" &&
+      typeof location.lng === "number"
+    ) {
+      updateData.location = {
+        lat: location.lat,
+        lng: location.lng,
+      };
+    }
+
+    if (Array.isArray(specializations)) {
+      updateData.specializations = specializations;
+    }
+
+    await db.collection("mechanics").doc(mechanicId).set(updateData, { merge: true });
+
+    return res.json({ ok: true, mechanicId, ...updateData });
+
+  } catch (err) {
+    console.error("updateMechanicProfile error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+}
 // EXPORTS
 
 module.exports = {
   getAvailableMechanics,
   getNearbyMechanics,
   getMechanicProfile,
-  updateMechanicAvailability, 
+  updateMechanicAvailability,
+  getMechanicSpecializations,
+  updateMechanicProfile, 
 };
