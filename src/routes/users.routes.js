@@ -1,12 +1,33 @@
 // src/routes/users.routes.js
-const router = require("express").Router();
+const express = require("express");
+const router = express.Router();
+
 const { requireAuth } = require("../middleware/auth");
+const { upload } = require("../middleware/upload");
+
 const usersController = require("../controllers/users.controller");
 
-// GET /api/users/profile
+// =====================
+// Profile
+// =====================
 router.get("/profile", requireAuth, usersController.getUserProfile);
-
-// PUT /api/users/profile ✅ NEW
 router.put("/profile", requireAuth, usersController.updateUserProfile);
+
+// =====================
+// Documents Upload
+// =====================
+// POST /api/users/documents
+router.post(
+  "/documents",
+  requireAuth,
+  upload.fields([
+    { name: "vehicleDocs", maxCount: 10 },
+    { name: "license", maxCount: 2 },
+  ]),
+  usersController.uploadUserDocuments
+);
+
+// GET /api/users/documents
+router.get("/documents", requireAuth, usersController.getUserDocuments);
 
 module.exports = router;
