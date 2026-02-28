@@ -13,7 +13,7 @@ async function requireAuth(req, res, next) {
     }
 
     const decoded = await admin.auth().verifyIdToken(token);
-    req.user = decoded; // contains uid + claims
+    req.user = decoded;
     next();
   } catch (err) {
     return res.status(401).json({

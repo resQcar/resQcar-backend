@@ -1,15 +1,46 @@
 // src/controllers/users.controller.js
+
 const admin = require("../config/firebase");
 const db = admin.firestore();
 
+// ============================
+// Helpers
+// ============================
+function isNonEmptyString(v) {
+  return typeof v === "string" && v.trim().length > 0;
+}
+
+function isValidE164(phone) {
+  // Example: +94771234567
+  return typeof phone === "string" && /^\+\d{10,15}$/.test(phone);
+}
+
+function isValidUrl(url) {
+  if (typeof url !== "string") return false;
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ============================
 // POST /api/users/documents
+// upload documents (vehicleDocs / license) using multer upload.fields(...)
+// ============================
 async function uploadUserDocuments(req, res) {
   try {
     const uid = req.user?.uid;
     if (!uid) return res.status(401).json({ message: "Unauthorized." });
 
+    // Collect files from multer
     const files = [];
+
+    // multer.single() uses req.file (not your case usually, but keep safe)
     if (req.file) files.push(req.file);
+
+    // multer.fields() uses req.files = { fieldName: [files...] }
     if (req.files && typeof req.files === "object") {
       for (const arr of Object.values(req.files)) {
         if (Array.isArray(arr)) files.push(...arr);
@@ -27,7 +58,9 @@ async function uploadUserDocuments(req, res) {
     const created = [];
 
     for (const f of files) {
-      const fieldDocType = (f.fieldname || "document").toString().toLowerCase();
+      // f.fieldname will be "vehicleDocs" or "license"
+      const fieldName = (f.fieldname || "document").toString();
+      const docType = fieldName.toLowerCase(); // "vehicledocs" or "license"
 
       const docRef = db
         .collection("users")
@@ -35,13 +68,14 @@ async function uploadUserDocuments(req, res) {
         .collection("documents")
         .doc();
 
-      // Build a public URL (because /uploads is served statically)
+      // Build a public URL because /uploads is served statically
+      // Example f.path: uploads/<uid>/<field>/<filename>
       const normalized = f.path.split("uploads").pop().replace(/\\/g, "/");
       const publicUrl = `/uploads${normalized}`;
 
       const data = {
-        docType: fieldDocType,          // "vehicledocs" or "license"
-        field: fieldDocType,
+        docType, // "vehicledocs" or "license"
+        field: fieldName, // "vehicleDocs" or "license" (original field)
         originalName: f.originalname,
         fileName: f.filename,
         mimeType: f.mimetype,
@@ -69,7 +103,9 @@ async function uploadUserDocuments(req, res) {
   }
 }
 
+// ============================
 // GET /api/users/documents
+// ============================
 async function getUserDocuments(req, res) {
   try {
     const uid = req.user?.uid;
@@ -82,12 +118,12 @@ async function getUserDocuments(req, res) {
       .orderBy("uploadedAt", "desc")
       .get();
 
-    const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const documents = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
     return res.status(200).json({
       message: "User documents fetched successfully.",
-      count: docs.length,
-      documents: docs,
+      count: documents.length,
+      documents,
     });
   } catch (err) {
     return res.status(500).json({
@@ -97,25 +133,9 @@ async function getUserDocuments(req, res) {
   }
 }
 
-// helpers
-function isNonEmptyString(v) {
-  return typeof v === "string" && v.trim().length > 0;
-}
-function isValidE164(phone) {
-  // safer min: 10 digits (Firebase/libphonenumber can reject too-short)
-  return typeof phone === "string" && /^\+\d{10,15}$/.test(phone);
-}
-function isValidUrl(url) {
-  if (typeof url !== "string") return false;
-  try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
+// ============================
 // GET /api/users/profile
+// ============================
 async function getUserProfile(req, res) {
   try {
     const uid = req.user?.uid;
@@ -143,28 +163,31 @@ async function getUserProfile(req, res) {
   }
 }
 
+// ============================
 // PUT /api/users/profile
+// ============================
 async function updateUserProfile(req, res) {
   try {
     const uid = req.user?.uid;
     if (!uid) return res.status(401).json({ message: "Unauthorized." });
 
     const { fullName, phoneNumber, photoURL } = req.body || {};
-
     const updateData = {};
 
     // fullName -> displayName
     if (fullName !== undefined) {
       if (fullName === "" || fullName === null) updateData.displayName = null;
       else if (!isNonEmptyString(fullName) || fullName.trim().length < 2) {
-        return res.status(400).json({ message: "fullName must be 2+ characters." });
+        return res
+          .status(400)
+          .json({ message: "fullName must be 2+ characters." });
       } else updateData.displayName = fullName.trim();
     }
 
     // phoneNumber must be E.164
-    // Sri Lanka example: 0771234567 => +94771234567 (remove leading 0)
     if (phoneNumber !== undefined) {
-      if (phoneNumber === "" || phoneNumber === null) updateData.phoneNumber = null;
+      if (phoneNumber === "" || phoneNumber === null)
+        updateData.phoneNumber = null;
       else if (!isValidE164(phoneNumber)) {
         return res.status(400).json({
           message: "phoneNumber must be E.164 like +94771234567 (no spaces).",
@@ -200,7 +223,6 @@ async function updateUserProfile(req, res) {
       },
     });
   } catch (err) {
-    // return real firebase error details (super important for debugging)
     return res.status(500).json({
       message: "Failed to update user profile.",
       error: err?.message || String(err),

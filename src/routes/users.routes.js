@@ -14,8 +14,9 @@ router.get("/profile", requireAuth, usersController.getUserProfile);
 router.put("/profile", requireAuth, usersController.updateUserProfile);
 
 // =====================
-// Documents Upload
+// Documents
 // =====================
+
 // POST /api/users/documents
 router.post(
   "/documents",
