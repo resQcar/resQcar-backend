@@ -146,3 +146,31 @@ exports.getServiceHistoryMechanic = async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 };
+
+exports.submitRating = async (req, res) => {
+    try {
+        const { serviceId, rating, comment } = req.body;
+
+        if (!serviceId || !rating) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Service ID and rating (1-5) are required" 
+            });
+        }
+
+        console.log(`New Rating for ${serviceId}: ${rating} stars - "${comment}"`);
+
+        res.status(201).json({
+            success: true,
+            data: {
+                serviceId,
+                rating,
+                comment,
+                submittedAt: new Date().toISOString()
+            },
+            message: "Rating and review submitted successfully!"
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
