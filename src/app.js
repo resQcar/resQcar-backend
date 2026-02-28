@@ -1,2 +1,2 @@
-const towTruckRoutes = require('./src/routes/tow-trucks.routes');
+const towTruckRoutes = require('./routes/tow-trucks.routes');
 app.use('/api/tow-trucks', towTruckRoutes);
