@@ -6,5 +6,6 @@ router.post('/create-intent', paymentController.createPaymentIntent);
 router.post('/confirm', paymentController.confirmPayment);
 router.get('/:id/status', paymentController.getPaymentStatus);
 router.get('/history', paymentController.getPaymentHistory);
+router.get('/service-history/customer', paymentController.getServiceHistoryCustomer);
 
 module.exports = router;
