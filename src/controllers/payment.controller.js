@@ -95,3 +95,29 @@ exports.getPaymentHistory = async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 };
+
+exports.getServiceHistoryCustomer = async (req, res) => {
+    try {
+        
+        const history = await stripe.paymentIntents.list({
+            limit: 10,
+        });
+
+        res.status(200).json({
+            success: true,
+            role: "customer",
+            services: history.data.map(item => ({
+                id: item.id,
+                amount: item.amount,
+                currency: item.currency,
+                date: new Date(item.created * 1000).toLocaleDateString(),
+                status: item.status,
+                description: item.description || "Vehicle Service"
+            })),
+            message: "Customer service history retrieved successfully"
+        });
+    } catch (error) {
+        console.error("Stripe Error:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
