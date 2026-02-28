@@ -121,3 +121,28 @@ exports.getServiceHistoryCustomer = async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 };
+
+exports.getServiceHistoryMechanic = async (req, res) => {
+    try {
+        const history = await stripe.paymentIntents.list({
+            limit: 10,
+        });
+
+        res.status(200).json({
+            success: true,
+            role: "mechanic",
+            jobs: history.data.map(item => ({
+                jobId: item.id,
+                earnings: item.amount, 
+                currency: item.currency,
+                completedAt: new Date(item.created * 1000).toLocaleString(),
+                status: item.status,
+                customerNote: item.description || "General Repair"
+            })),
+            message: "Mechanic service history retrieved successfully"
+        });
+    } catch (error) {
+        console.error("Stripe Error:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
