@@ -9,5 +9,6 @@ router.get('/history', paymentController.getPaymentHistory);
 router.get('/service-history/customer', paymentController.getServiceHistoryCustomer);
 router.get('/service-history/mechanic', paymentController.getServiceHistoryMechanic);
 router.post('/ratings', paymentController.submitRating);
+router.get('/ratings/mechanic/:id', paymentController.getMechanicRatings);
 
 module.exports = router;
