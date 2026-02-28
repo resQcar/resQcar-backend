@@ -7,5 +7,6 @@ router.post('/confirm', paymentController.confirmPayment);
 router.get('/:id/status', paymentController.getPaymentStatus);
 router.get('/history', paymentController.getPaymentHistory);
 router.get('/service-history/customer', paymentController.getServiceHistoryCustomer);
+router.get('/service-history/mechanic', paymentController.getServiceHistoryMechanic);
 
 module.exports = router;
