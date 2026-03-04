@@ -1,26 +1,25 @@
-// src/config/firebase.js
 const admin = require("firebase-admin");
 const path = require("path");
 
 function initFirebase() {
-  if (admin.apps.length) return;
+  if (admin.apps.length) return admin;
 
   const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (!serviceAccountPath) {
-    throw new Error("Missing FIREBASE_SERVICE_ACCOUNT in .env");
+    throw new Error("FIREBASE_SERVICE_ACCOUNT is missing in .env");
   }
 
   const resolvedPath = path.resolve(serviceAccountPath);
-  // eslint-disable-next-line import/no-dynamic-require, global-require
-  const serviceAccount = require(resolvedPath);
 
   admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
+    credential: admin.credential.cert(require(resolvedPath)),
   });
+
+  console.log("✅ Firebase Admin initialized");
+  return admin;
 }
 
-initFirebase();
+const firebaseAdmin = initFirebase();
+const db = firebaseAdmin.firestore();
 
-const db = admin.firestore();
-
-module.exports = { admin, db };
+module.exports = { admin: firebaseAdmin, db };
