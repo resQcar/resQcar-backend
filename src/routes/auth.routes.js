@@ -1,14 +1,10 @@
-const express = require("express");
-const router = express.Router();
+const router = require("express").Router();
+const authController = require("../controllers/auth.controller");
 
-const auth = require("../middleware/auth");
-const { register, login, selectUserType } = require("../controllers/auth.controller");
+// POST /api/auth/register
+router.post("/register", authController.register);
 
-router.post("/register", register);
-
-// Firebase login: send ID token in Authorization header
-router.post("/login", auth, login);
-
-router.put("/select-user-type", auth, selectUserType);
+// POST /api/auth/login
+router.post("/login", authController.login);
 
 module.exports = router;

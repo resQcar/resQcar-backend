@@ -1,35 +1,13 @@
-// src/config/firebase.js
 const admin = require("firebase-admin");
 const path = require("path");
 
-function initFirebase() {
-  if (admin.apps.length) return admin.apps[0];
+// Load your service account key
+const serviceAccount = require(path.join(__dirname, "../../serviceAccountKey.json"));
 
-  try {
-    const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT;
-    console.log("🔍 Looking for key at:", serviceAccountPath);
-
-    if (!serviceAccountPath) {
-      throw new Error("FIREBASE_SERVICE_ACCOUNT is missing in .env");
-    }
-
-    const resolvedPath = path.resolve(serviceAccountPath);
-    console.log("🔍 Resolved path:", resolvedPath);
-
-    const serviceAccount = require(resolvedPath);
-
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-
-  } catch (error) {
-    console.error("❌ Firebase init error:", error.message);
-    throw error;
-  }
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+  });
 }
 
-initFirebase();
-
-const db = admin.firestore();
-
-module.exports = { admin, db };
+module.exports = admin;
