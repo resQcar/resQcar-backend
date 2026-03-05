@@ -1,5 +1,5 @@
 // src/controllers/auth.controller.js
-const admin = require("../config/firebase");
+const { admin, auth, db } = require("../config/firebase");
 const https = require("https");
 
 function isValidEmail(email) {
@@ -8,11 +8,9 @@ function isValidEmail(email) {
 
 function firebaseEmailPasswordLogin(email, password) {
   return new Promise((resolve, reject) => {
-    const apiKey = process.env.FIREBASE_WEB_API_KEY;
+    const apiKey = process.env.FIREBASE_WEB_API_KEY || process.env.FIREBASE_API_KEY;
     if (!apiKey) {
-      return reject(
-        new Error("Missing FIREBASE_WEB_API_KEY in .env (needed for email/password login via Postman).")
-      );
+      return reject(new Error("Missing FIREBASE_WEB_API_KEY in .env"));
     }
 
     const postData = JSON.stringify({
@@ -52,7 +50,7 @@ function firebaseEmailPasswordLogin(email, password) {
 }
 
 // ---------- REGISTER ----------
-async function register(req, res) {
+exports.register = async (req, res) => {
   try {
     const { email, password, fullName, name, phone } = req.body;
     const displayName = fullName || name;
@@ -67,11 +65,20 @@ async function register(req, res) {
       return res.status(400).json({ message: "Full name is required." });
     }
 
-    const userRecord = await admin.auth().createUser({
+    const userRecord = await auth.createUser({
       email: String(email).trim().toLowerCase(),
       password: String(password),
       displayName: String(displayName).trim(),
       phoneNumber: phone ? String(phone).trim() : undefined,
+    });
+
+    // Save user to Firestore
+    await db.collection("users").doc(userRecord.uid).set({
+      uid: userRecord.uid,
+      email: userRecord.email,
+      fullName: String(displayName).trim(),
+      userType: null,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     return res.status(201).json({
@@ -85,7 +92,6 @@ async function register(req, res) {
     });
   } catch (err) {
     const code = err?.errorInfo?.code || err?.code;
-
     if (code === "auth/email-already-exists") {
       return res.status(409).json({ message: "Email already registered." });
     }
@@ -95,16 +101,15 @@ async function register(req, res) {
     if (code === "auth/invalid-password") {
       return res.status(400).json({ message: "Password is invalid (min 6 chars)." });
     }
-
     return res.status(500).json({
       message: "Registration failed.",
       error: String(err?.message || err),
     });
   }
-}
+};
 
 // ---------- LOGIN ----------
-async function login(req, res) {
+exports.login = async (req, res) => {
   try {
     const { idToken, email, password } = req.body;
     let tokenToVerify = idToken;
@@ -120,9 +125,9 @@ async function login(req, res) {
       tokenToVerify = loginRes.idToken;
     }
 
-    const decoded = await admin.auth().verifyIdToken(String(tokenToVerify));
+    const decoded = await auth.verifyIdToken(String(tokenToVerify));
     const uid = decoded.uid;
-    const userRecord = await admin.auth().getUser(uid);
+    const userRecord = await auth.getUser(uid);
     const userType = decoded.userType ?? userRecord.customClaims?.userType ?? null;
 
     return res.status(200).json({
@@ -138,23 +143,18 @@ async function login(req, res) {
     });
   } catch (err) {
     const msg = String(err?.message || err);
-
     if (msg.includes("INVALID_PASSWORD") || msg.includes("EMAIL_NOT_FOUND")) {
       return res.status(401).json({ message: "Invalid email or password." });
     }
     if (msg.includes("USER_DISABLED")) {
       return res.status(403).json({ message: "User account is disabled." });
     }
-
-    return res.status(500).json({
-      message: "Login failed.",
-      error: msg,
-    });
+    return res.status(500).json({ message: "Login failed.", error: msg });
   }
-}
+};
 
 // ---------- SELECT USER TYPE ----------
-async function selectUserType(req, res) {
+exports.selectUserType = async (req, res) => {
   try {
     const uid = req.user?.uid;
     if (!uid) return res.status(401).json({ message: "Unauthorized." });
@@ -170,13 +170,17 @@ async function selectUserType(req, res) {
       return res.status(400).json({ message: "Invalid userType. Use 'customer' or 'mechanic'." });
     }
 
-    const userRecord = await admin.auth().getUser(uid);
+    const userRecord = await auth.getUser(uid);
     const existingClaims = userRecord.customClaims || {};
 
-    await admin.auth().setCustomUserClaims(uid, {
+    // Update Firebase Auth custom claims
+    await auth.setCustomUserClaims(uid, {
       ...existingClaims,
       userType,
     });
+
+    // Update Firestore too
+    await db.collection("users").doc(uid).update({ userType });
 
     return res.status(200).json({
       message: "User type updated successfully.",
@@ -194,6 +198,4 @@ async function selectUserType(req, res) {
       error: String(err?.message || err),
     });
   }
-}
-
-module.exports = { register, login, selectUserType };
+};
