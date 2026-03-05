@@ -2,9 +2,7 @@
 const { db, admin } = require('../config/firebase');
 const { dispatchToMechanics } = require('../services/dispatch.service');
 const { getIO } = require('../websocket/socket');
-const admin = require('firebase-admin');
 const {
-  notifyMechanicNewJob,
   notifyCustomerAccepted,
   notifyCustomerEnRoute,
   notifyCustomerArrived,
@@ -26,16 +24,59 @@ const getFcmToken = async (userId) => {
   }
 };
 
-// ─────────────────────────────────────────────
-// GET /api/jobs/:id
-// ─────────────────────────────────────────────
+// POST /api/bookings/emergency
+// Customer creates an emergency booking
+const createEmergencyBooking = async (req, res) => {
+  try {
+    const { customerId, location, issueType, radiusKm } = req.body;
+
+    if (!customerId) return res.status(400).json({ error: 'customerId is required' });
+    if (!location?.lat || !location?.lng) return res.status(400).json({ error: 'location {lat,lng} required' });
+    if (!issueType) return res.status(400).json({ error: 'issueType is required' });
+
+    const bookingRef = db.collection('bookings').doc();
+    const booking = {
+      bookingId: bookingRef.id,
+      customerId,
+      location,
+      issueType,
+      status: 'REQUESTED',
+      createdAt: new Date().toISOString(),
+    };
+
+    await bookingRef.set(booking);
+
+    const wsHub = req.app.locals.wsHub;
+    const dispatchResult = await dispatchToMechanics({
+      bookingId: booking.bookingId,
+      location,
+      issueType,
+      radiusKm: typeof radiusKm === 'number' ? radiusKm : 8,
+      limit: 10,
+      wsHub,
+    });
+
+    return res.status(201).json({
+      booking,
+      dispatch: { sentOffers: dispatchResult.count },
+    });
+  } catch (err) {
+    console.error('createEmergencyBooking error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+};
+
+// GET /api/bookings/:id
+// Returns full details of a single job
 const getJobById = async (req, res) => {
   try {
     const { id } = req.params;
     const doc = await db.collection('bookings').doc(id).get();
+
     if (!doc.exists) {
       return res.status(404).json({ error: 'Job not found' });
     }
+
     return res.status(200).json({ success: true, job: { id: doc.id, ...doc.data() } });
   } catch (error) {
     console.error('getJobById error:', error);
@@ -43,10 +84,8 @@ const getJobById = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────
-// PUT /api/jobs/:id/accept
-// Body: { mechanicId }
-// ─────────────────────────────────────────────
+// PUT /api/bookings/:id/accept
+// Mechanic accepts a job request
 const acceptJob = async (req, res) => {
   try {
     const { id } = req.params;
@@ -60,7 +99,7 @@ const acceptJob = async (req, res) => {
     if (!jobDoc.exists) return res.status(404).json({ error: 'Job not found' });
 
     if (jobDoc.data().status !== 'REQUESTED') {
-      return res.status(400).json({ error: 'Job is no longer available' });
+      return res.status(400).json({ error: 'Job is no longer available (already accepted or closed)' });
     }
 
     const jobData = jobDoc.data();
@@ -76,7 +115,9 @@ const acceptJob = async (req, res) => {
     const io = getIO();
     if (io) {
       io.to(`customer_${jobData.customerId}`).emit('job_status_update', {
-        jobId: id, status: 'ACCEPTED', mechanicId,
+        jobId: id,
+        status: 'ACCEPTED',
+        mechanicId,
       });
     }
 
@@ -93,10 +134,8 @@ const acceptJob = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────
-// PUT /api/jobs/:id/reject
-// Body: { mechanicId }
-// ─────────────────────────────────────────────
+// PUT /api/bookings/:id/reject
+// Mechanic rejects a job request
 const rejectJob = async (req, res) => {
   try {
     const { id } = req.params;
@@ -121,10 +160,8 @@ const rejectJob = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────
-// PUT /api/jobs/:id/status
-// Body: { mechanicId, status } → EN_ROUTE | ARRIVED | REPAIRING
-// ─────────────────────────────────────────────
+// PUT /api/bookings/:id/status
+// Update job status: EN_ROUTE | ARRIVED | REPAIRING
 const updateJobStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -139,9 +176,7 @@ const updateJobStatus = async (req, res) => {
     const jobRef = db.collection('bookings').doc(id);
     const jobDoc = await jobRef.get();
 
-    if (!jobDoc.exists) {
-      return res.status(404).json({ error: 'Job not found' });
-    }
+    if (!jobDoc.exists) return res.status(404).json({ error: 'Job not found' });
 
     const jobData = jobDoc.data();
 
@@ -164,7 +199,9 @@ const updateJobStatus = async (req, res) => {
     const io = getIO();
     if (io) {
       io.to(`customer_${jobData.customerId}`).emit('job_status_update', {
-        jobId: id, status, mechanicId,
+        jobId: id,
+        status,
+        mechanicId,
       });
     }
 
@@ -181,10 +218,8 @@ const updateJobStatus = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────
-// POST /api/jobs/:id/additional-work
-// Body: { mechanicId, description, additionalCost }
-// ─────────────────────────────────────────────
+// POST /api/bookings/:id/additional-work
+// Mechanic reports additional issues found
 const addAdditionalWork = async (req, res) => {
   try {
     const { id } = req.params;
@@ -216,9 +251,9 @@ const addAdditionalWork = async (req, res) => {
     // WebSocket
     const io = getIO();
     if (io) {
-      const customerId = jobDoc.data().customerId;
-      io.to(`customer_${customerId}`).emit('additional_work_reported', {
-        jobId: id, additionalWork: additionalWorkEntry,
+      io.to(`customer_${jobDoc.data().customerId}`).emit('additional_work_reported', {
+        jobId: id,
+        additionalWork: additionalWorkEntry,
       });
     }
 
@@ -229,14 +264,12 @@ const addAdditionalWork = async (req, res) => {
   }
 };
 
-// ─────────────────────────────────────────────
-// PUT /api/jobs/:id/complete
-// Body: { mechanicId, finalAmount }
-// ─────────────────────────────────────────────
-const completeJob = async (req, res) => {
+// PUT /api/bookings/:id/arrive
+// Mechanic marks they have arrived at location
+const arriveAtJob = async (req, res) => {
   try {
     const { id } = req.params;
-    const { mechanicId, finalAmount } = req.body;
+    const { mechanicId } = req.body;
 
     if (!mechanicId) return res.status(400).json({ error: 'mechanicId is required' });
 
@@ -244,62 +277,6 @@ const completeJob = async (req, res) => {
     const jobDoc = await jobRef.get();
 
     if (!jobDoc.exists) return res.status(404).json({ error: 'Job not found' });
-
-    const jobData = jobDoc.data();
-
-    if (jobData.mechanicId !== mechanicId) {
-      return res.status(403).json({ error: 'You are not assigned to this job' });
-    }
-    if (jobData.status === 'COMPLETED') {
-      return res.status(400).json({ error: 'Job is already completed' });
-    }
-
-    await jobRef.update({
-      status: 'COMPLETED',
-      finalAmount: finalAmount || jobData.estimatedAmount || 0,
-      completedAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    // WebSocket
-    const io = getIO();
-    if (io) {
-      io.to(`customer_${jobData.customerId}`).emit('job_status_update', {
-        jobId: id, status: 'COMPLETED',
-      });
-    }
-
-    // FCM: notify customer job complete
-    const customerFcmToken = await getFcmToken(jobData.customerId);
-    await notifyCustomerCompleted(customerFcmToken, id);
-
-    return res.status(200).json({ success: true, message: 'Job completed successfully' });
-  } catch (error) {
-    console.error('completeJob error:', error);
-    return res.status(500).json({ error: error.message });
-  }
-};
-
-// ─────────────────────────────────────────────
-// PUT /api/jobs/:id/arrive
-// Body: { mechanicId }
-// Mechanic marks they have arrived at location
-// ─────────────────────────────────────────────
-const arriveAtJob = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { mechanicId } = req.body;
-
-    if (!mechanicId) {
-      return res.status(400).json({ error: 'mechanicId is required' });
-    }
-
-    const jobRef = db.collection('bookings').doc(id);
-    const jobDoc = await jobRef.get();
-
-    if (!jobDoc.exists) {
-      return res.status(404).json({ error: 'Job not found' });
-    }
 
     const jobData = jobDoc.data();
 
@@ -334,6 +311,56 @@ const arriveAtJob = async (req, res) => {
   }
 };
 
+// PUT /api/bookings/:id/complete
+// Mechanic marks job as complete
+const completeJob = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { mechanicId, finalAmount } = req.body;
+
+    if (!mechanicId) return res.status(400).json({ error: 'mechanicId is required' });
+
+    const jobRef = db.collection('bookings').doc(id);
+    const jobDoc = await jobRef.get();
+
+    if (!jobDoc.exists) return res.status(404).json({ error: 'Job not found' });
+
+    const jobData = jobDoc.data();
+
+    if (jobData.mechanicId !== mechanicId) {
+      return res.status(403).json({ error: 'You are not assigned to this job' });
+    }
+    if (jobData.status === 'COMPLETED') {
+      return res.status(400).json({ error: 'Job is already completed' });
+    }
+
+    await jobRef.update({
+      status: 'COMPLETED',
+      finalAmount: finalAmount || jobData.estimatedAmount || 0,
+      completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // WebSocket
+    const io = getIO();
+    if (io) {
+      io.to(`customer_${jobData.customerId}`).emit('job_status_update', {
+        jobId: id,
+        status: 'COMPLETED',
+      });
+    }
+
+    // FCM: notify customer job complete
+    const customerFcmToken = await getFcmToken(jobData.customerId);
+    await notifyCustomerCompleted(customerFcmToken, id);
+
+    return res.status(200).json({ success: true, message: 'Job completed successfully' });
+  } catch (error) {
+    console.error('completeJob error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   createEmergencyBooking,
   getJobById,
@@ -341,6 +368,6 @@ module.exports = {
   rejectJob,
   updateJobStatus,
   addAdditionalWork,
-  completeJob,
   arriveAtJob,
+  completeJob,
 };
