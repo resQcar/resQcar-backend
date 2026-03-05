@@ -1,7 +1,51 @@
 // src/controllers/bookings.controller.js
-const { db } = require('../config/firebase');
+const { db, admin } = require('../config/firebase');
+const { dispatchToMechanics } = require('../services/dispatch.service');
 const { getIO } = require('../websocket/socket');
-const admin = require('firebase-admin');
+
+// ─────────────────────────────────────────────
+// POST /api/bookings/emergency
+// Customer creates an emergency booking
+// ─────────────────────────────────────────────
+const createEmergencyBooking = async (req, res) => {
+  try {
+    const { customerId, location, issueType, radiusKm } = req.body;
+
+    if (!customerId) return res.status(400).json({ error: 'customerId is required' });
+    if (!location?.lat || !location?.lng) return res.status(400).json({ error: 'location {lat,lng} required' });
+    if (!issueType) return res.status(400).json({ error: 'issueType is required' });
+
+    const bookingRef = db.collection('bookings').doc();
+    const booking = {
+      bookingId: bookingRef.id,
+      customerId,
+      location,
+      issueType,
+      status: 'REQUESTED',
+      createdAt: new Date().toISOString(),
+    };
+
+    await bookingRef.set(booking);
+
+    const wsHub = req.app.locals.wsHub;
+    const dispatchResult = await dispatchToMechanics({
+      bookingId: booking.bookingId,
+      location,
+      issueType,
+      radiusKm: typeof radiusKm === 'number' ? radiusKm : 8,
+      limit: 10,
+      wsHub,
+    });
+
+    return res.status(201).json({
+      booking,
+      dispatch: { sentOffers: dispatchResult.count },
+    });
+  } catch (err) {
+    console.error('createEmergencyBooking error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+};
 
 // ─────────────────────────────────────────────
 // GET /api/jobs/:id
@@ -10,7 +54,6 @@ const admin = require('firebase-admin');
 const getJobById = async (req, res) => {
   try {
     const { id } = req.params;
-
     const doc = await db.collection('bookings').doc(id).get();
 
     if (!doc.exists) {
@@ -26,7 +69,6 @@ const getJobById = async (req, res) => {
 
 // ─────────────────────────────────────────────
 // PUT /api/jobs/:id/accept
-// Body: { mechanicId }
 // Mechanic accepts a job request
 // ─────────────────────────────────────────────
 const acceptJob = async (req, res) => {
@@ -34,16 +76,12 @@ const acceptJob = async (req, res) => {
     const { id } = req.params;
     const { mechanicId } = req.body;
 
-    if (!mechanicId) {
-      return res.status(400).json({ error: 'mechanicId is required' });
-    }
+    if (!mechanicId) return res.status(400).json({ error: 'mechanicId is required' });
 
     const jobRef = db.collection('bookings').doc(id);
     const jobDoc = await jobRef.get();
 
-    if (!jobDoc.exists) {
-      return res.status(404).json({ error: 'Job not found' });
-    }
+    if (!jobDoc.exists) return res.status(404).json({ error: 'Job not found' });
 
     if (jobDoc.data().status !== 'REQUESTED') {
       return res.status(400).json({ error: 'Job is no longer available (already accepted or closed)' });
@@ -56,11 +94,9 @@ const acceptJob = async (req, res) => {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // Notify customer via WebSocket
     const io = getIO();
     if (io) {
-      const customerId = jobDoc.data().customerId;
-      io.to(`customer_${customerId}`).emit('job_status_update', {
+      io.to(`customer_${jobDoc.data().customerId}`).emit('job_status_update', {
         jobId: id,
         status: 'ACCEPTED',
         mechanicId,
@@ -76,7 +112,6 @@ const acceptJob = async (req, res) => {
 
 // ─────────────────────────────────────────────
 // PUT /api/jobs/:id/reject
-// Body: { mechanicId }
 // Mechanic rejects a job request
 // ─────────────────────────────────────────────
 const rejectJob = async (req, res) => {
@@ -84,16 +119,12 @@ const rejectJob = async (req, res) => {
     const { id } = req.params;
     const { mechanicId } = req.body;
 
-    if (!mechanicId) {
-      return res.status(400).json({ error: 'mechanicId is required' });
-    }
+    if (!mechanicId) return res.status(400).json({ error: 'mechanicId is required' });
 
     const jobRef = db.collection('bookings').doc(id);
     const jobDoc = await jobRef.get();
 
-    if (!jobDoc.exists) {
-      return res.status(404).json({ error: 'Job not found' });
-    }
+    if (!jobDoc.exists) return res.status(404).json({ error: 'Job not found' });
 
     await jobRef.update({
       rejectedBy: admin.firestore.FieldValue.arrayUnion(mechanicId),
@@ -109,20 +140,15 @@ const rejectJob = async (req, res) => {
 
 // ─────────────────────────────────────────────
 // PUT /api/jobs/:id/status
-// Body: { mechanicId, status }
-// status can be: 'EN_ROUTE' | 'ARRIVED' | 'REPAIRING'
+// Update job status: EN_ROUTE | ARRIVED | REPAIRING
 // ─────────────────────────────────────────────
 const updateJobStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { mechanicId, status } = req.body;
-
     const validStatuses = ['EN_ROUTE', 'ARRIVED', 'REPAIRING'];
 
-    if (!mechanicId || !status) {
-      return res.status(400).json({ error: 'mechanicId and status are required' });
-    }
-
+    if (!mechanicId || !status) return res.status(400).json({ error: 'mechanicId and status are required' });
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: `Status must be one of: ${validStatuses.join(', ')}` });
     }
@@ -130,10 +156,7 @@ const updateJobStatus = async (req, res) => {
     const jobRef = db.collection('bookings').doc(id);
     const jobDoc = await jobRef.get();
 
-    if (!jobDoc.exists) {
-      return res.status(404).json({ error: 'Job not found' });
-    }
-
+    if (!jobDoc.exists) return res.status(404).json({ error: 'Job not found' });
     if (jobDoc.data().mechanicId !== mechanicId) {
       return res.status(403).json({ error: 'You are not assigned to this job' });
     }
@@ -149,11 +172,9 @@ const updateJobStatus = async (req, res) => {
 
     await jobRef.update(updateData);
 
-    // Notify customer live via WebSocket
     const io = getIO();
     if (io) {
-      const customerId = jobDoc.data().customerId;
-      io.to(`customer_${customerId}`).emit('job_status_update', {
+      io.to(`customer_${jobDoc.data().customerId}`).emit('job_status_update', {
         jobId: id,
         status,
         mechanicId,
@@ -169,7 +190,6 @@ const updateJobStatus = async (req, res) => {
 
 // ─────────────────────────────────────────────
 // POST /api/jobs/:id/additional-work
-// Body: { mechanicId, description, additionalCost }
 // Mechanic reports additional issues found
 // ─────────────────────────────────────────────
 const addAdditionalWork = async (req, res) => {
@@ -184,10 +204,7 @@ const addAdditionalWork = async (req, res) => {
     const jobRef = db.collection('bookings').doc(id);
     const jobDoc = await jobRef.get();
 
-    if (!jobDoc.exists) {
-      return res.status(404).json({ error: 'Job not found' });
-    }
-
+    if (!jobDoc.exists) return res.status(404).json({ error: 'Job not found' });
     if (jobDoc.data().mechanicId !== mechanicId) {
       return res.status(403).json({ error: 'You are not assigned to this job' });
     }
@@ -203,11 +220,9 @@ const addAdditionalWork = async (req, res) => {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // Notify customer via WebSocket
     const io = getIO();
     if (io) {
-      const customerId = jobDoc.data().customerId;
-      io.to(`customer_${customerId}`).emit('additional_work_reported', {
+      io.to(`customer_${jobDoc.data().customerId}`).emit('additional_work_reported', {
         jobId: id,
         additionalWork: additionalWorkEntry,
       });
@@ -222,7 +237,6 @@ const addAdditionalWork = async (req, res) => {
 
 // ─────────────────────────────────────────────
 // PUT /api/jobs/:id/complete
-// Body: { mechanicId, finalAmount }
 // Mechanic marks job as complete
 // ─────────────────────────────────────────────
 const completeJob = async (req, res) => {
@@ -230,23 +244,18 @@ const completeJob = async (req, res) => {
     const { id } = req.params;
     const { mechanicId, finalAmount } = req.body;
 
-    if (!mechanicId) {
-      return res.status(400).json({ error: 'mechanicId is required' });
-    }
+    if (!mechanicId) return res.status(400).json({ error: 'mechanicId is required' });
 
     const jobRef = db.collection('bookings').doc(id);
     const jobDoc = await jobRef.get();
 
-    if (!jobDoc.exists) {
-      return res.status(404).json({ error: 'Job not found' });
-    }
+    if (!jobDoc.exists) return res.status(404).json({ error: 'Job not found' });
 
     const jobData = jobDoc.data();
 
     if (jobData.mechanicId !== mechanicId) {
       return res.status(403).json({ error: 'You are not assigned to this job' });
     }
-
     if (jobData.status === 'COMPLETED') {
       return res.status(400).json({ error: 'Job is already completed' });
     }
@@ -258,7 +267,6 @@ const completeJob = async (req, res) => {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // Notify customer via WebSocket
     const io = getIO();
     if (io) {
       io.to(`customer_${jobData.customerId}`).emit('job_status_update', {
@@ -275,6 +283,7 @@ const completeJob = async (req, res) => {
 };
 
 module.exports = {
+  createEmergencyBooking,
   getJobById,
   acceptJob,
   rejectJob,
