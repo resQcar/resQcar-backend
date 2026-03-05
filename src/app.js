@@ -1,24 +1,43 @@
+// src/app.js
 require('dotenv').config();
-require('./config/firebase'); // Initialize Firebase
-
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 
-const mechanicRoutes = require('./routes/mechanic.routes');
-const bookingRoutes = require('./routes/bookings.routes');
+// Initialize Firebase Admin once
+require('./config/firebase');
 
 const app = express();
 
+// Middlewares
 app.use(cors());
 app.use(express.json());
 
-// Routes
-app.use('/api/mechanics', mechanicRoutes);
-app.use('/api/jobs', bookingRoutes);
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
-// Health check
-app.get('/', (req, res) => {
-  res.json({ message: 'ResQCar Backend is running 🚗' });
+// Health checks
+app.get('/', (req, res) => res.send('resQcar backend running'));
+app.get('/health', (req, res) => res.json({ ok: true }));
+
+// Auth & User routes (Supuni)
+app.use('/api/auth', require('./routes/auth.routes'));
+app.use('/api/users', require('./routes/user.routes'));
+
+// Bookings routes (Imanjith + Nicol combined)
+app.use('/api/bookings', require('./routes/bookings.routes'));
+
+// Mechanic dashboard routes (Nicol)
+app.use('/api/mechanics', require('./routes/mechanic.routes'));
+
+// Jobs routes (Imanjith)
+app.use('/api/jobs', require('./routes/jobs.routes'));
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Error:', err.message);
+  const status = err.statusCode || err.status || 500;
+  res.status(status).json({ message: err.message || 'Server error' });
 });
 
 module.exports = app;

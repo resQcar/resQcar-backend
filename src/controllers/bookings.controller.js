@@ -1,5 +1,6 @@
 // src/controllers/bookings.controller.js
-const { db } = require('../config/firebase');
+const { db, admin } = require('../config/firebase');
+const { dispatchToMechanics } = require('../services/dispatch.service');
 const { getIO } = require('../websocket/socket');
 const admin = require('firebase-admin');
 const {
@@ -51,16 +52,12 @@ const acceptJob = async (req, res) => {
     const { id } = req.params;
     const { mechanicId } = req.body;
 
-    if (!mechanicId) {
-      return res.status(400).json({ error: 'mechanicId is required' });
-    }
+    if (!mechanicId) return res.status(400).json({ error: 'mechanicId is required' });
 
     const jobRef = db.collection('bookings').doc(id);
     const jobDoc = await jobRef.get();
 
-    if (!jobDoc.exists) {
-      return res.status(404).json({ error: 'Job not found' });
-    }
+    if (!jobDoc.exists) return res.status(404).json({ error: 'Job not found' });
 
     if (jobDoc.data().status !== 'REQUESTED') {
       return res.status(400).json({ error: 'Job is no longer available' });
@@ -105,16 +102,12 @@ const rejectJob = async (req, res) => {
     const { id } = req.params;
     const { mechanicId } = req.body;
 
-    if (!mechanicId) {
-      return res.status(400).json({ error: 'mechanicId is required' });
-    }
+    if (!mechanicId) return res.status(400).json({ error: 'mechanicId is required' });
 
     const jobRef = db.collection('bookings').doc(id);
     const jobDoc = await jobRef.get();
 
-    if (!jobDoc.exists) {
-      return res.status(404).json({ error: 'Job not found' });
-    }
+    if (!jobDoc.exists) return res.status(404).json({ error: 'Job not found' });
 
     await jobRef.update({
       rejectedBy: admin.firestore.FieldValue.arrayUnion(mechanicId),
@@ -136,13 +129,9 @@ const updateJobStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { mechanicId, status } = req.body;
-
     const validStatuses = ['EN_ROUTE', 'ARRIVED', 'REPAIRING'];
 
-    if (!mechanicId || !status) {
-      return res.status(400).json({ error: 'mechanicId and status are required' });
-    }
-
+    if (!mechanicId || !status) return res.status(400).json({ error: 'mechanicId and status are required' });
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: `Status must be one of: ${validStatuses.join(', ')}` });
     }
@@ -208,10 +197,7 @@ const addAdditionalWork = async (req, res) => {
     const jobRef = db.collection('bookings').doc(id);
     const jobDoc = await jobRef.get();
 
-    if (!jobDoc.exists) {
-      return res.status(404).json({ error: 'Job not found' });
-    }
-
+    if (!jobDoc.exists) return res.status(404).json({ error: 'Job not found' });
     if (jobDoc.data().mechanicId !== mechanicId) {
       return res.status(403).json({ error: 'You are not assigned to this job' });
     }
@@ -252,23 +238,18 @@ const completeJob = async (req, res) => {
     const { id } = req.params;
     const { mechanicId, finalAmount } = req.body;
 
-    if (!mechanicId) {
-      return res.status(400).json({ error: 'mechanicId is required' });
-    }
+    if (!mechanicId) return res.status(400).json({ error: 'mechanicId is required' });
 
     const jobRef = db.collection('bookings').doc(id);
     const jobDoc = await jobRef.get();
 
-    if (!jobDoc.exists) {
-      return res.status(404).json({ error: 'Job not found' });
-    }
+    if (!jobDoc.exists) return res.status(404).json({ error: 'Job not found' });
 
     const jobData = jobDoc.data();
 
     if (jobData.mechanicId !== mechanicId) {
       return res.status(403).json({ error: 'You are not assigned to this job' });
     }
-
     if (jobData.status === 'COMPLETED') {
       return res.status(400).json({ error: 'Job is already completed' });
     }
@@ -354,6 +335,7 @@ const arriveAtJob = async (req, res) => {
 };
 
 module.exports = {
+  createEmergencyBooking,
   getJobById,
   acceptJob,
   rejectJob,
