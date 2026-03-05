@@ -192,3 +192,31 @@ exports.submitRating = async (req, res) => {
     return res.status(500).json({ success: false, error: error.message });
   }
 };
+
+// GET /api/payments/mechanics/:id/ratings
+exports.getMechanicRatings = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Mechanic ID is required' });
+    }
+
+    const mockRatings = [
+      { customerName: 'Amara', rating: 5, comment: 'Excellent work!', date: '2024-03-01' },
+      { customerName: 'Kasun', rating: 4, comment: 'Very professional service.', date: '2024-02-28' },
+    ];
+
+    return res.status(200).json({
+      success: true,
+      mechanicId: id,
+      averageRating: 4.5,
+      totalReviews: mockRatings.length,
+      reviews: mockRatings,
+      message: 'Mechanic ratings retrieved successfully',
+    });
+  } catch (error) {
+    console.error('Stripe Error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
