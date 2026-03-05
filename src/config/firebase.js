@@ -20,6 +20,7 @@ function initFirebase() {
 
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
+      storageBucket: `${serviceAccount.project_id}.appspot.com`,
     });
 
   } catch (error) {
@@ -30,6 +31,8 @@ function initFirebase() {
 
 initFirebase();
 
+const auth = admin.auth();
 const db = admin.firestore();
+const bucket = admin.storage().bucket();
 
-module.exports = { admin, db };
+module.exports = { admin, auth, db, bucket };
