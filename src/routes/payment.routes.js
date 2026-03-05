@@ -11,6 +11,9 @@ router.post('/confirm', paymentController.confirmPayment);
 
 // GET  /api/payments/history                -> get payment history
 router.get('/history', paymentController.getPaymentHistory);
+router.get('/service-history/customer', paymentController.getServiceHistoryCustomer);
+router.get('/service-history/mechanic', paymentController.getServiceHistoryMechanic);
+router.post('/ratings', paymentController.submitRating);
 
 // GET  /api/payments/customer-history       -> get customer service history
 router.get('/customer-history', paymentController.getServiceHistoryCustomer);
