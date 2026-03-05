@@ -139,54 +139,56 @@ exports.getServiceHistoryCustomer = async (req, res) => {
 
 // GET /api/payments/mechanic-history
 exports.getServiceHistoryMechanic = async (req, res) => {
-    try {
-        const history = await stripe.paymentIntents.list({
-            limit: 10,
-        });
+  try {
+    const history = await stripe.paymentIntents.list({
+      limit: 10,
+    });
 
-        res.status(200).json({
-            success: true,
-            role: "mechanic",
-            jobs: history.data.map(item => ({
-                jobId: item.id,
-                earnings: item.amount, 
-                currency: item.currency,
-                completedAt: new Date(item.created * 1000).toLocaleString(),
-                status: item.status,
-                customerNote: item.description || "General Repair"
-            })),
-            message: "Mechanic service history retrieved successfully"
-        });
-    } catch (error) {
-        console.error("Stripe Error:", error);
-        res.status(500).json({ success: false, error: error.message });
-    }
+    return res.status(200).json({
+      success: true,
+      role: 'mechanic',
+      jobs: history.data.map((item) => ({
+        jobId: item.id,
+        earnings: item.amount,
+        currency: item.currency,
+        completedAt: new Date(item.created * 1000).toLocaleString(),
+        status: item.status,
+        customerNote: item.description || 'General Repair',
+      })),
+      message: 'Mechanic service history retrieved successfully',
+    });
+  } catch (error) {
+    console.error('Stripe Error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
 };
 
+// POST /api/payments/ratings
 exports.submitRating = async (req, res) => {
-    try {
-        const { serviceId, rating, comment } = req.body;
+  try {
+    const { serviceId, rating, comment } = req.body;
 
-        if (!serviceId || !rating) {
-            return res.status(400).json({ 
-                success: false, 
-                message: "Service ID and rating (1-5) are required" 
-            });
-        }
-
-        console.log(`New Rating for ${serviceId}: ${rating} stars - "${comment}"`);
-
-        res.status(201).json({
-            success: true,
-            data: {
-                serviceId,
-                rating,
-                comment,
-                submittedAt: new Date().toISOString()
-            },
-            message: "Rating and review submitted successfully!"
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+    if (!serviceId || !rating) {
+      return res.status(400).json({
+        success: false,
+        message: 'Service ID and rating (1-5) are required',
+      });
     }
+
+    console.log(`New Rating for ${serviceId}: ${rating} stars - "${comment}"`);
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        serviceId,
+        rating,
+        comment,
+        submittedAt: new Date().toISOString(),
+      },
+      message: 'Rating and review submitted successfully!',
+    });
+  } catch (error) {
+    console.error('Stripe Error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
 };
