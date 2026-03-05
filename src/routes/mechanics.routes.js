@@ -1,6 +1,11 @@
 const router = require("express").Router();
-const { getAvailableMechanics } = require("../controllers/mechanics.controller");
+
+const {
+  getAvailableMechanics,
+  getNearbyMechanics,
+} = require("../controllers/mechanics.controller");
 
 router.get("/available", getAvailableMechanics);
+router.get("/nearby", getNearbyMechanics);
 
 module.exports = router;
