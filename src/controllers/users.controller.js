@@ -1,22 +1,17 @@
 // src/controllers/users.controller.js
+const { admin, auth, db } = require('../config/firebase');
 
-const admin = require("../config/firebase");
-const db = admin.firestore();
-
-// ============================
 // Helpers
-// ============================
 function isNonEmptyString(v) {
-  return typeof v === "string" && v.trim().length > 0;
+  return typeof v === 'string' && v.trim().length > 0;
 }
 
 function isValidE164(phone) {
-  // Example: +94771234567
-  return typeof phone === "string" && /^\+\d{10,15}$/.test(phone);
+  return typeof phone === 'string' && /^\+\d{10,15}$/.test(phone);
 }
 
 function isValidUrl(url) {
-  if (typeof url !== "string") return false;
+  if (typeof url !== 'string') return false;
   try {
     new URL(url);
     return true;
@@ -25,23 +20,17 @@ function isValidUrl(url) {
   }
 }
 
-// ============================
 // POST /api/users/documents
-// upload documents (vehicleDocs / license) using multer upload.fields(...)
-// ============================
 async function uploadUserDocuments(req, res) {
   try {
     const uid = req.user?.uid;
-    if (!uid) return res.status(401).json({ message: "Unauthorized." });
+    if (!uid) return res.status(401).json({ message: 'Unauthorized.' });
 
-    // Collect files from multer
     const files = [];
 
-    // multer.single() uses req.file (not your case usually, but keep safe)
     if (req.file) files.push(req.file);
 
-    // multer.fields() uses req.files = { fieldName: [files...] }
-    if (req.files && typeof req.files === "object") {
+    if (req.files && typeof req.files === 'object') {
       for (const arr of Object.values(req.files)) {
         if (Array.isArray(arr)) files.push(...arr);
       }
@@ -49,8 +38,7 @@ async function uploadUserDocuments(req, res) {
 
     if (!files.length) {
       return res.status(400).json({
-        message:
-          "No files uploaded. Use multipart/form-data with fields: vehicleDocs and/or license.",
+        message: 'No files uploaded. Use multipart/form-data with fields: vehicleDocs and/or license.',
       });
     }
 
@@ -58,24 +46,21 @@ async function uploadUserDocuments(req, res) {
     const created = [];
 
     for (const f of files) {
-      // f.fieldname will be "vehicleDocs" or "license"
-      const fieldName = (f.fieldname || "document").toString();
-      const docType = fieldName.toLowerCase(); // "vehicledocs" or "license"
+      const fieldName = (f.fieldname || 'document').toString();
+      const docType = fieldName.toLowerCase();
 
       const docRef = db
-        .collection("users")
+        .collection('users')
         .doc(uid)
-        .collection("documents")
+        .collection('documents')
         .doc();
 
-      // Build a public URL because /uploads is served statically
-      // Example f.path: uploads/<uid>/<field>/<filename>
-      const normalized = f.path.split("uploads").pop().replace(/\\/g, "/");
+      const normalized = f.path.split('uploads').pop().replace(/\\/g, '/');
       const publicUrl = `/uploads${normalized}`;
 
       const data = {
-        docType, // "vehicledocs" or "license"
-        field: fieldName, // "vehicleDocs" or "license" (original field)
+        docType,
+        field: fieldName,
         originalName: f.originalname,
         fileName: f.filename,
         mimeType: f.mimetype,
@@ -91,129 +76,138 @@ async function uploadUserDocuments(req, res) {
     await batch.commit();
 
     return res.status(201).json({
-      message: "Documents uploaded successfully.",
+      message: 'Documents uploaded successfully.',
       count: created.length,
       documents: created,
     });
   } catch (err) {
     return res.status(500).json({
-      message: "Failed to upload documents.",
+      message: 'Failed to upload documents.',
       error: err?.message || String(err),
     });
   }
 }
 
-// ============================
 // GET /api/users/documents
-// ============================
 async function getUserDocuments(req, res) {
   try {
     const uid = req.user?.uid;
-    if (!uid) return res.status(401).json({ message: "Unauthorized." });
+    if (!uid) return res.status(401).json({ message: 'Unauthorized.' });
 
     const snap = await db
-      .collection("users")
+      .collection('users')
       .doc(uid)
-      .collection("documents")
-      .orderBy("uploadedAt", "desc")
+      .collection('documents')
+      .orderBy('uploadedAt', 'desc')
       .get();
 
     const documents = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
     return res.status(200).json({
-      message: "User documents fetched successfully.",
+      message: 'User documents fetched successfully.',
       count: documents.length,
       documents,
     });
   } catch (err) {
     return res.status(500).json({
-      message: "Failed to fetch documents.",
+      message: 'Failed to fetch documents.',
       error: err?.message || String(err),
     });
   }
 }
 
-// ============================
 // GET /api/users/profile
-// ============================
 async function getUserProfile(req, res) {
   try {
     const uid = req.user?.uid;
-    if (!uid) return res.status(401).json({ message: "Unauthorized." });
+    if (!uid) return res.status(401).json({ message: 'Unauthorized.' });
 
-    const userRecord = await admin.auth().getUser(uid);
+    const userRecord = await auth.getUser(uid);
     const claims = userRecord.customClaims || {};
 
+    // Also get extra fields from Firestore
+    const firestoreDoc = await db.collection('users').doc(uid).get();
+    const firestoreData = firestoreDoc.exists ? firestoreDoc.data() : {};
+
     return res.status(200).json({
-      message: "User profile fetched successfully.",
+      message: 'User profile fetched successfully.',
       user: {
         uid: userRecord.uid,
         email: userRecord.email || null,
-        fullName: userRecord.displayName || null,
-        phoneNumber: userRecord.phoneNumber || null,
+        fullName: userRecord.displayName || firestoreData.fullName || null,
+        phoneNumber: userRecord.phoneNumber || firestoreData.phone || null,
         photoURL: userRecord.photoURL || null,
         userType: claims.userType ?? req.user?.userType ?? null,
+        name: firestoreData.name || null,
+        address: firestoreData.address || null,
       },
     });
   } catch (err) {
     return res.status(500).json({
-      message: "Failed to fetch user profile.",
+      message: 'Failed to fetch user profile.',
       error: err?.message || String(err),
     });
   }
 }
 
-// ============================
 // PUT /api/users/profile
-// ============================
 async function updateUserProfile(req, res) {
   try {
     const uid = req.user?.uid;
-    if (!uid) return res.status(401).json({ message: "Unauthorized." });
+    if (!uid) return res.status(401).json({ message: 'Unauthorized.' });
 
-    const { fullName, phoneNumber, photoURL } = req.body || {};
-    const updateData = {};
+    const { fullName, phoneNumber, photoURL, name, phone, address } = req.body || {};
+    const authUpdateData = {};
+    const firestoreUpdateData = {};
 
-    // fullName -> displayName
+    // Update Firebase Auth fields
     if (fullName !== undefined) {
-      if (fullName === "" || fullName === null) updateData.displayName = null;
+      if (fullName === '' || fullName === null) authUpdateData.displayName = null;
       else if (!isNonEmptyString(fullName) || fullName.trim().length < 2) {
-        return res
-          .status(400)
-          .json({ message: "fullName must be 2+ characters." });
-      } else updateData.displayName = fullName.trim();
+        return res.status(400).json({ message: 'fullName must be 2+ characters.' });
+      } else authUpdateData.displayName = fullName.trim();
     }
 
-    // phoneNumber must be E.164
     if (phoneNumber !== undefined) {
-      if (phoneNumber === "" || phoneNumber === null)
-        updateData.phoneNumber = null;
+      if (phoneNumber === '' || phoneNumber === null) authUpdateData.phoneNumber = null;
       else if (!isValidE164(phoneNumber)) {
         return res.status(400).json({
-          message: "phoneNumber must be E.164 like +94771234567 (no spaces).",
+          message: 'phoneNumber must be E.164 like +94771234567 (no spaces).',
         });
-      } else updateData.phoneNumber = phoneNumber;
+      } else authUpdateData.phoneNumber = phoneNumber;
     }
 
-    // photoURL must be a valid URL
     if (photoURL !== undefined) {
-      if (photoURL === "" || photoURL === null) updateData.photoURL = null;
+      if (photoURL === '' || photoURL === null) authUpdateData.photoURL = null;
       else if (!isValidUrl(photoURL)) {
-        return res.status(400).json({ message: "photoURL must be a valid URL." });
-      } else updateData.photoURL = photoURL;
+        return res.status(400).json({ message: 'photoURL must be a valid URL.' });
+      } else authUpdateData.photoURL = photoURL;
     }
 
-    if (Object.keys(updateData).length === 0) {
+    // Update Firestore fields (from user.controller.js)
+    if (name !== undefined) firestoreUpdateData.name = name;
+    if (phone !== undefined) firestoreUpdateData.phone = phone;
+    if (address !== undefined) firestoreUpdateData.address = address;
+
+    if (Object.keys(authUpdateData).length === 0 && Object.keys(firestoreUpdateData).length === 0) {
       return res.status(400).json({
-        message: "Send at least one field: fullName, phoneNumber, photoURL",
+        message: 'Send at least one field: fullName, phoneNumber, photoURL, name, phone, address',
       });
     }
 
-    await admin.auth().updateUser(uid, updateData);
+    // Update Firebase Auth if needed
+    if (Object.keys(authUpdateData).length > 0) {
+      await auth.updateUser(uid, authUpdateData);
+    }
 
-    const userRecord = await admin.auth().getUser(uid);
+    // Update Firestore if needed
+    if (Object.keys(firestoreUpdateData).length > 0) {
+      await db.collection('users').doc(uid).set(firestoreUpdateData, { merge: true });
+    }
+
+    const userRecord = await auth.getUser(uid);
     return res.status(200).json({
-      message: "User profile updated successfully.",
+      message: 'User profile updated successfully.',
       user: {
         uid: userRecord.uid,
         email: userRecord.email || null,
@@ -224,7 +218,7 @@ async function updateUserProfile(req, res) {
     });
   } catch (err) {
     return res.status(500).json({
-      message: "Failed to update user profile.",
+      message: 'Failed to update user profile.',
       error: err?.message || String(err),
       code: err?.code || null,
     });
