@@ -20,9 +20,11 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 app.get('/', (req, res) => res.send('resQcar backend running'));
 app.get('/health', (req, res) => res.json({ ok: true }));
 
-// Auth & User routes (Supuni)
+// Auth routes (Supuni)
 app.use('/api/auth', require('./routes/auth.routes'));
-app.use('/api/users', require('./routes/user.routes'));
+
+// User routes (users.routes.js is the correct one)
+app.use('/api/users', require('./routes/users.routes'));
 
 // Bookings routes (Imanjith + Nicol combined)
 app.use('/api/bookings', require('./routes/bookings.routes'));
