@@ -1,21 +1,19 @@
-const { auth } = require("../config/firebase");
+const { admin } = require("../config/firebase");
 
-module.exports = async (req, res, next) => {
+module.exports = async function auth(req, res, next) {
   try {
-    const header = req.headers.authorization;
-
-    if (!header || !header.startsWith("Bearer ")) {
+    const header = req.headers.authorization || "";
+    if (!header.startsWith("Bearer ")) {
       return res.status(401).json({ message: "No token provided" });
     }
 
     const token = header.split(" ")[1];
+    const decoded = await admin.auth().verifyIdToken(token);
 
-    const decoded = await auth.verifyIdToken(token);
-
-    req.user = decoded; // now req.user.uid available
-
+    // decoded contains uid, email, etc.
+    req.user = decoded;
     next();
-  } catch (error) {
+  } catch (err) {
     return res.status(401).json({ message: "Invalid or expired token" });
   }
 };
