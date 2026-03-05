@@ -2,7 +2,7 @@ const admin = require("firebase-admin");
 const path = require("path");
 
 function initFirebase() {
-  if (admin.apps.length) return;
+  if (admin.apps.length) return admin.apps[0];
 
   try {
     const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT;
@@ -29,6 +29,8 @@ function initFirebase() {
 
 initFirebase();
 
+const auth = admin.auth();
 const db = admin.firestore();
+const bucket = admin.storage().bucket();
 
-module.exports = { admin, db };
+module.exports = { admin, auth, db, bucket };
