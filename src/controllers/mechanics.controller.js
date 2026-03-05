@@ -139,7 +139,6 @@ const getDashboardStats = async (req, res) => {
 };
 
 // GET /api/mechanics/available
-// Returns all mechanics who are currently available and online
 const getAvailableMechanics = async (req, res) => {
   try {
     const snapshot = await db
@@ -161,7 +160,6 @@ const getAvailableMechanics = async (req, res) => {
 };
 
 // GET /api/mechanics/nearby?lat=xxx&lng=xxx&radiusKm=10
-// Returns available mechanics within radius sorted by distance
 const getNearbyMechanics = async (req, res) => {
   try {
     const { lat, lng, radiusKm = '10' } = req.query;
@@ -206,10 +204,42 @@ const getNearbyMechanics = async (req, res) => {
   }
 };
 
+// GET /api/mechanics/:id/profile
+const getMechanicProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const doc = await db.collection('mechanics').doc(id).get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ error: 'Mechanic not found' });
+    }
+
+    const mechanic = { id: doc.id, ...doc.data() };
+
+    const profile = {
+      id: mechanic.id,
+      name: mechanic.name || '',
+      phone: mechanic.phone || '',
+      isAvailable: !!mechanic.isAvailable,
+      isOnline: !!mechanic.isOnline,
+      location: mechanic.location || null,
+      specializations: mechanic.specializations || [],
+      ratingAvg: mechanic.ratingAvg || 0,
+      ratingCount: mechanic.ratingCount || 0,
+    };
+
+    return res.status(200).json({ success: true, profile });
+  } catch (error) {
+    console.error('getMechanicProfile error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   getJobRequests,
   getActiveJobs,
   getDashboardStats,
   getAvailableMechanics,
   getNearbyMechanics,
+  getMechanicProfile,
 };
