@@ -1,31 +1,19 @@
-// src/routes/mechanic.routes.js
-const express = require('express');
-const router = express.Router();
+const router = require("express").Router();
 const {
-  getJobRequests,
-  getActiveJobs,
-  getDashboardStats,
   getAvailableMechanics,
   getNearbyMechanics,
   getMechanicProfile,
-} = require('../controllers/mechanics.controller');
+  updateMechanicAvailability,
+  updateMechanicProfile, 
+} = require("../controllers/mechanics.controller");
 
-// GET /api/mechanics/available      -> list all available and online mechanics
-router.get('/available', getAvailableMechanics);
+router.get("/available", getAvailableMechanics);
+router.get("/nearby", getNearbyMechanics);
+router.get("/:id/profile", getMechanicProfile);
 
-// GET /api/mechanics/nearby         -> list nearby mechanics by distance
-router.get('/nearby', getNearbyMechanics);
+router.put("/availability", updateMechanicAvailability);
 
-// GET /api/mechanics/job-requests   -> list all pending job requests for a mechanic
-router.get('/job-requests', getJobRequests);
-
-// GET /api/mechanics/active-jobs    -> list mechanic's currently active jobs
-router.get('/active-jobs', getActiveJobs);
-
-// GET /api/mechanics/dashboard      -> dashboard stats (earnings, rating, totals)
-router.get('/dashboard', getDashboardStats);
-
-// GET /api/mechanics/:id/profile    -> get mechanic profile by id
-router.get('/:id/profile', getMechanicProfile);
+//  Profile settings
+router.put("/profile", updateMechanicProfile);
 
 module.exports = router;
