@@ -174,23 +174,32 @@ exports.submitRating = async (req, res) => {
         message: 'Service ID and rating (1-5) are required',
       });
     }
+};
 
-    console.log(`New Rating for ${serviceId}: ${rating} stars - "${comment}"`);
+exports.getMechanicRatings = async (req, res) => {
+    try {
+        const { id } = req.params; 
 
-    return res.status(201).json({
-      success: true,
-      data: {
-        serviceId,
-        rating,
-        comment,
-        submittedAt: new Date().toISOString(),
-      },
-      message: 'Rating and review submitted successfully!',
-    });
-  } catch (error) {
-    console.error('Stripe Error:', error);
-    return res.status(500).json({ success: false, error: error.message });
-  }
+        if (!id) {
+            return res.status(400).json({ success: false, message: "Mechanic ID is required" });
+        }
+
+        const mockRatings = [
+            { customerName: "Amara", rating: 5, comment: "Excellent work!", date: "2024-03-01" },
+            { customerName: "Kasun", rating: 4, comment: "Very professional service.", date: "2024-02-28" }
+        ];
+
+        res.status(200).json({
+            success: true,
+            mechanicId: id,
+            averageRating: 4.5,
+            totalReviews: mockRatings.length,
+            reviews: mockRatings,
+            message: "Mechanic ratings retrieved successfully"
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
 };
 
 // GET /api/payments/mechanics/:id/ratings

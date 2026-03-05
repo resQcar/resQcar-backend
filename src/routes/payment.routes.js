@@ -11,6 +11,7 @@ router.post('/confirm', paymentController.confirmPayment);
 
 // POST /api/payments/ratings                -> submit a rating and review
 router.post('/ratings', paymentController.submitRating);
+router.get('/ratings/mechanic/:id', paymentController.getMechanicRatings);
 
 // GET  /api/payments/history                -> get payment history
 router.get('/history', paymentController.getPaymentHistory);
