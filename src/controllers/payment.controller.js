@@ -13,6 +13,7 @@ exports.createPaymentIntent = async (req, res) => {
             currency: currency,
             automatic_payment_methods: {
                 enabled: true,
+                allow_redirects: 'never'
             },
         });
 
@@ -27,3 +28,22 @@ exports.createPaymentIntent = async (req, res) => {
     }
 };
 
+exports.confirmPayment = async (req, res) => {
+    try {
+        const { paymentIntentId } = req.body;
+        if (!paymentIntentId) return res.status(400).json({ success: false, error: "Payment Intent ID is required" });
+
+        const paymentIntent = await stripe.paymentIntents.confirm(paymentIntentId, {
+            payment_method: 'pm_card_visa'
+        });
+
+        if (paymentIntent.status === 'succeeded' || paymentIntent.status === 'requires_capture') {
+            return res.status(200).json({ success: true, message: "Payment confirmed successfully!", paymentStatus: paymentIntent.status });
+        } else {
+            return res.status(400).json({ success: false, message: "Payment has not succeeded yet.", paymentStatus: paymentIntent.status });
+        }
+    } catch (error) {
+        console.error("Stripe Error:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
