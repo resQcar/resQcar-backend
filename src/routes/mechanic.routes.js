@@ -7,6 +7,7 @@ const {
   getDashboardStats,
   getAvailableMechanics,
   getNearbyMechanics,
+  getMechanicProfile,
 } = require('../controllers/mechanics.controller');
 
 // GET /api/mechanics/available      -> list all available and online mechanics
@@ -23,5 +24,8 @@ router.get('/active-jobs', getActiveJobs);
 
 // GET /api/mechanics/dashboard      -> dashboard stats (earnings, rating, totals)
 router.get('/dashboard', getDashboardStats);
+
+// GET /api/mechanics/:id/profile    -> get mechanic profile by id
+router.get('/:id/profile', getMechanicProfile);
 
 module.exports = router;
