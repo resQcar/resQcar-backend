@@ -113,26 +113,52 @@ exports.getPaymentHistory = async (req, res) => {
 
 // GET /api/payments/customer-history
 exports.getServiceHistoryCustomer = async (req, res) => {
-  try {
-    const history = await stripe.paymentIntents.list({
-      limit: 10,
-    });
+    try {
+        
+        const history = await stripe.paymentIntents.list({
+            limit: 10,
+        });
 
-    return res.status(200).json({
-      success: true,
-      role: 'customer',
-      services: history.data.map((item) => ({
-        id: item.id,
-        amount: item.amount,
-        currency: item.currency,
-        date: new Date(item.created * 1000).toLocaleDateString(),
-        status: item.status,
-        description: item.description || 'Vehicle Service',
-      })),
-      message: 'Customer service history retrieved successfully',
-    });
-  } catch (error) {
-    console.error('Stripe Error:', error);
-    return res.status(500).json({ success: false, error: error.message });
-  }
+        res.status(200).json({
+            success: true,
+            role: "customer",
+            services: history.data.map(item => ({
+                id: item.id,
+                amount: item.amount,
+                currency: item.currency,
+                date: new Date(item.created * 1000).toLocaleDateString(),
+                status: item.status,
+                description: item.description || "Vehicle Service"
+            })),
+            message: "Customer service history retrieved successfully"
+        });
+    } catch (error) {
+        console.error("Stripe Error:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+exports.getServiceHistoryMechanic = async (req, res) => {
+    try {
+        const history = await stripe.paymentIntents.list({
+            limit: 10,
+        });
+
+        res.status(200).json({
+            success: true,
+            role: "mechanic",
+            jobs: history.data.map(item => ({
+                jobId: item.id,
+                earnings: item.amount, 
+                currency: item.currency,
+                completedAt: new Date(item.created * 1000).toLocaleString(),
+                status: item.status,
+                customerNote: item.description || "General Repair"
+            })),
+            message: "Mechanic service history retrieved successfully"
+        });
+    } catch (error) {
+        console.error("Stripe Error:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
 };
