@@ -11,11 +11,8 @@ const initSocket = (server) => {
   });
 
   io.on('connection', (socket) => {
-    console.log(' New client connected: ${socket.id}`);
+    console.log(`New client connected: ${socket.id}`);
 
-    // Flutter app joins a room by userId and role
-    // Customer: socket.emit('join', { userId: 'abc', role: 'customer' })
-    // Mechanic: socket.emit('join', { userId: 'xyz', role: 'mechanic' })
     socket.on('join', ({ userId, role }) => {
       if (role === 'customer') {
         socket.join(`customer_${userId}`);
@@ -37,13 +34,12 @@ const initSocket = (server) => {
 
 const getIO = () => {
   if (!io) {
-    console.warn(' Socket.IO not initialized yet');
+    console.warn('Socket.IO not initialized yet');
     return null;
   }
   return io;
 };
 
-// initWebSocket alias so Imanjith's server.js still works
 const initWebSocket = initSocket;
 
 module.exports = { initSocket, initWebSocket, getIO };
