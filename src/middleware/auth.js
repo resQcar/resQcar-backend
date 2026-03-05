@@ -1,5 +1,5 @@
 // src/middleware/auth.js
-const admin = require("../config/firebase");
+const { auth } = require("../config/firebase");
 
 async function requireAuth(req, res, next) {
   try {
@@ -10,7 +10,7 @@ async function requireAuth(req, res, next) {
         message: "Missing Authorization header. Use: Bearer <token>",
       });
     }
-    const decoded = await admin.auth().verifyIdToken(token);
+    const decoded = await auth.verifyIdToken(token);
     req.user = decoded;
     next();
   } catch (err) {
