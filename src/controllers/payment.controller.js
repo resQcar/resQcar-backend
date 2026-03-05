@@ -73,15 +73,40 @@ exports.getPaymentStatus = async (req, res) => {
 
     const paymentIntent = await stripe.paymentIntents.retrieve(id);
 
-    return res.status(200).json({
-      success: true,
-      status: paymentIntent.status,
-      amount: paymentIntent.amount,
-      currency: paymentIntent.currency,
-      message: 'Payment status retrieved successfully',
-    });
-  } catch (error) {
-    console.error('Stripe Error:', error);
-    return res.status(500).json({ success: false, error: error.message });
-  }
+        res.status(200).json({
+            success: true,
+            status: paymentIntent.status,
+            amount: paymentIntent.amount,
+            currency: paymentIntent.currency,
+            message: "Payment status retrieved successfully"
+        });
+    } catch (error) {
+        console.error("Stripe Error:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
+exports.getPaymentHistory = async (req, res) => {
+    try {
+        
+        const payments = await stripe.paymentIntents.list({
+            limit: 10,
+        });
+
+        res.status(200).json({
+            success: true,
+            count: payments.data.length,
+            history: payments.data.map(payment => ({
+                id: payment.id,
+                amount: payment.amount,
+                currency: payment.currency,
+                status: payment.status,
+                date: new Date(payment.created * 1000).toLocaleString()
+            })),
+            message: "Payment history retrieved successfully"
+        });
+    } catch (error) {
+        console.error("Stripe Error:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
 };
