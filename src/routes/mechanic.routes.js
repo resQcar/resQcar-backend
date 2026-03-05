@@ -6,10 +6,14 @@ const {
   getActiveJobs,
   getDashboardStats,
   getAvailableMechanics,
+  getNearbyMechanics,
 } = require('../controllers/mechanics.controller');
 
 // GET /api/mechanics/available      -> list all available and online mechanics
 router.get('/available', getAvailableMechanics);
+
+// GET /api/mechanics/nearby         -> list nearby mechanics by distance
+router.get('/nearby', getNearbyMechanics);
 
 // GET /api/mechanics/job-requests   -> list all pending job requests for a mechanic
 router.get('/job-requests', getJobRequests);
