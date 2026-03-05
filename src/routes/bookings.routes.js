@@ -8,6 +8,7 @@ const {
   updateJobStatus,
   addAdditionalWork,
   completeJob,
+  arriveAtJob,
 } = require('../controllers/bookings.controller');
 
 // POST /api/bookings/emergency  → customer creates emergency booking
@@ -25,7 +26,10 @@ router.put('/:id/reject', rejectJob);
 // PUT  /api/bookings/:id/status → update job status
 router.put('/:id/status', updateJobStatus);
 
-// POST /api/bookings/:id/additional-work → report additional issues
+// PUT  /api/jobs/:id/arrive      → mechanic marks arrived at location
+router.put('/:id/arrive', arriveAtJob);
+
+// POST /api/jobs/:id/additional-work → report additional issues found
 router.post('/:id/additional-work', addAdditionalWork);
 
 // PUT  /api/bookings/:id/complete → mark job complete
