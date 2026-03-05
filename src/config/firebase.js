@@ -31,14 +31,7 @@ initFirebase();
 
 const auth = admin.auth();
 const db = admin.firestore();
-const bucket = admin.storage().bucket();
+const bucket = null; // Storage disabled - no bucket configured
 
 module.exports = { admin, auth, db, bucket };
-
-
-
-
-
-
-
-
+node src/server.js
