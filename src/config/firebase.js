@@ -6,14 +6,14 @@ function initFirebase() {
 
   try {
     const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT;
-    console.log("🔍 Looking for key at:", serviceAccountPath);
+    console.log("Looking for key at:", serviceAccountPath);
 
     if (!serviceAccountPath) {
       throw new Error("Missing FIREBASE_SERVICE_ACCOUNT in .env");
     }
 
     const resolvedPath = path.resolve(serviceAccountPath);
-    console.log("🔍 Resolved path:", resolvedPath);
+    console.log("Resolved path:", resolvedPath);
 
     const serviceAccount = require(resolvedPath);
 
