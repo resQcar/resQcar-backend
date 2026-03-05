@@ -192,6 +192,26 @@ const getMechanicProfile = async (req, res) => {
   }
 };
 
+// GET /api/mechanics/:id/specializations
+const getMechanicSpecializations = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const doc = await db.collection('mechanics').doc(id).get();
+    if (!doc.exists) {
+      return res.status(404).json({ error: 'Mechanic not found' });
+    }
+    const mechanic = doc.data();
+    return res.status(200).json({
+      success: true,
+      mechanicId: id,
+      specializations: mechanic.specializations || [],
+    });
+  } catch (error) {
+    console.error('getMechanicSpecializations error:', error);
+    return res.status(500).json({ error: error.message });
+  }
+};
+
 // PUT /api/mechanics/availability
 const updateMechanicAvailability = async (req, res) => {
   try {
@@ -265,6 +285,7 @@ module.exports = {
   getAvailableMechanics,
   getNearbyMechanics,
   getMechanicProfile,
+  getMechanicSpecializations,
   updateMechanicAvailability,
   updateMechanicProfile,
 };
