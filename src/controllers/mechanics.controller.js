@@ -1,4 +1,5 @@
-const { db } = require("../config/firebase");
+// src/controllers/mechanics.controller.js
+const { db } = require('../config/firebase');
 
 
 // Haversine helpers
@@ -13,11 +14,9 @@ function distanceKm(a, b) {
   const dLng = toRad(b.lng - a.lng);
   const lat1 = toRad(a.lat);
   const lat2 = toRad(b.lat);
-
   const x =
     Math.sin(dLat / 2) ** 2 +
     Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
-
   return 2 * R * Math.asin(Math.sqrt(x));
 }
 
@@ -25,14 +24,14 @@ function distanceKm(a, b) {
 
 async function getAvailableMechanics(req, res) {
   try {
-    const snap = await db
-      .collection("mechanics")
-      .where("isAvailable", "==", true)
-      .where("isOnline", "==", true)
+    const snapshot = await db
+      .collection('mechanics')
+      .where('isAvailable', '==', true)
+      .where('isOnline', '==', true)
       .get();
 
     const mechanics = [];
-    snap.forEach((doc) => {
+    snapshot.forEach((doc) => {
       mechanics.push({ id: doc.id, ...doc.data() });
     });
 
@@ -44,18 +43,18 @@ async function getAvailableMechanics(req, res) {
     console.error("getAvailableMechanics error:", err);
     return res.status(500).json({ error: "Server error" });
   }
-}
+};
 
 
 // GET Nearby Mechanics
 
 async function getNearbyMechanics(req, res) {
   try {
-    const { lat, lng, radiusKm = "10" } = req.query;
+    const { lat, lng, radiusKm = '10' } = req.query;
     const radius = parseFloat(radiusKm);
 
     if (!lat || !lng) {
-      return res.status(400).json({ error: "lat and lng required" });
+      return res.status(400).json({ error: 'lat and lng are required as query params' });
     }
 
     const userLocation = {
@@ -63,15 +62,14 @@ async function getNearbyMechanics(req, res) {
       lng: parseFloat(lng),
     };
 
-    const snap = await db
-      .collection("mechanics")
-      .where("isAvailable", "==", true)
-      .where("isOnline", "==", true)
+    const snapshot = await db
+      .collection('mechanics')
+      .where('isAvailable', '==', true)
+      .where('isOnline', '==', true)
       .get();
 
     const nearby = [];
-
-    snap.forEach((doc) => {
+    snapshot.forEach((doc) => {
       const mechanic = doc.data();
 
       if (
@@ -79,7 +77,6 @@ async function getNearbyMechanics(req, res) {
         mechanic.location?.lng != null
       ) {
         const dist = distanceKm(userLocation, mechanic.location);
-
         if (dist <= radius) {
           nearby.push({
             id: doc.id,
@@ -93,36 +90,29 @@ async function getNearbyMechanics(req, res) {
     // Sort by nearest first
     nearby.sort((a, b) => a.distanceKm - b.distanceKm);
 
-    return res.json({
-      count: nearby.length,
-      mechanics: nearby,
-    });
-  } catch (err) {
-    console.error("Nearby error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return res.status(200).json({ success: true, count: nearby.length, mechanics: nearby });
+  } catch (error) {
+    console.error('getNearbyMechanics error:', error);
+    return res.status(500).json({ error: error.message });
   }
-}
+};
 
-
-// GET Mechanic Profile
-
-async function getMechanicProfile(req, res) {
+// GET /api/mechanics/:id/profile
+const getMechanicProfile = async (req, res) => {
   try {
     const { id } = req.params;
-
-    const doc = await db.collection("mechanics").doc(id).get();
+    const doc = await db.collection('mechanics').doc(id).get();
 
     if (!doc.exists) {
-      return res.status(404).json({ error: "Mechanic not found" });
+      return res.status(404).json({ error: 'Mechanic not found' });
     }
 
     const mechanic = { id: doc.id, ...doc.data() };
 
-    // Clean response (only needed fields)
     const profile = {
       id: mechanic.id,
-      name: mechanic.name || "",
-      phone: mechanic.phone || "",
+      name: mechanic.name || '',
+      phone: mechanic.phone || '',
       isAvailable: !!mechanic.isAvailable,
       isOnline: !!mechanic.isOnline,
       location: mechanic.location || null,
@@ -131,110 +121,18 @@ async function getMechanicProfile(req, res) {
       ratingCount: mechanic.ratingCount || 0,
     };
 
-    return res.json({ profile });
-  } catch (err) {
-    console.error("getMechanicProfile error:", err);
-    return res.status(500).json({ error: "Server error" });
+    return res.status(200).json({ success: true, profile });
+  } catch (error) {
+    console.error('getMechanicProfile error:', error);
+    return res.status(500).json({ error: error.message });
   }
-}
-
-async function updateMechanicAvailability(req, res) {
-  try {
-    const { mechanicId, isAvailable, isOnline } = req.body;
-
-    if (!mechanicId) {
-      return res.status(400).json({ error: "mechanicId is required" });
-    }
-
-    // at least one field must be provided
-    const hasIsAvailable = typeof isAvailable === "boolean";
-    const hasIsOnline = typeof isOnline === "boolean";
-
-    if (!hasIsAvailable && !hasIsOnline) {
-      return res.status(400).json({
-        error: "Provide isAvailable and/or isOnline as boolean",
-      });
-    }
-
-    const updateData = { updatedAt: new Date().toISOString() };
-    if (hasIsAvailable) updateData.isAvailable = isAvailable;
-    if (hasIsOnline) updateData.isOnline = isOnline;
-
-    await db.collection("mechanics").doc(mechanicId).set(updateData, { merge: true });
-
-    return res.json({ ok: true, mechanicId, ...updateData });
-  } catch (err) {
-    console.error("updateMechanicAvailability error:", err);
-    return res.status(500).json({ error: "Server error" });
-  }
-}
-
-
-async function updateMechanicProfile(req, res) {
-  try {
-    const {
-      mechanicId,
-      name,
-      phone,
-      specializations,
-      location,
-      garageName,
-      profileImageUrl,
-    } = req.body;
-
-    if (!mechanicId) {
-      return res.status(400).json({ error: "mechanicId is required" });
-    }
-
-    // Build update object only from provided fields
-    const updateData = { updatedAt: new Date().toISOString() };
-
-    if (typeof name === "string") updateData.name = name.trim();
-    if (typeof phone === "string") updateData.phone = phone.trim();
-    if (typeof garageName === "string") updateData.garageName = garageName.trim();
-    if (typeof profileImageUrl === "string") updateData.profileImageUrl = profileImageUrl.trim();
-
-    // Specializations must be array of strings
-    if (Array.isArray(specializations)) {
-      updateData.specializations = specializations
-        .filter((x) => typeof x === "string")
-        .map((x) => x.trim())
-        .filter(Boolean);
-    }
-
-    // Location must be object with numeric lat/lng
-    if (location && typeof location === "object") {
-      const lat = Number(location.lat);
-      const lng = Number(location.lng);
-
-      if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
-        updateData.location = { lat, lng };
-      } else {
-        return res.status(400).json({ error: "location.lat and location.lng must be numbers" });
-      }
-    }
-
-    // Prevent empty update (only mechanicId provided)
-    const keys = Object.keys(updateData);
-    if (keys.length === 1) {
-      return res.status(400).json({ error: "No valid fields to update" });
-    }
-
-    await db.collection("mechanics").doc(mechanicId).set(updateData, { merge: true });
-
-    return res.json({ ok: true, mechanicId, updated: updateData });
-  } catch (err) {
-    console.error("updateMechanicProfile error:", err);
-    return res.status(500).json({ error: "Server error" });
-  }
-}
-
-// EXPORTS
+};
 
 module.exports = {
+  getJobRequests,
+  getActiveJobs,
+  getDashboardStats,
   getAvailableMechanics,
   getNearbyMechanics,
   getMechanicProfile,
-  updateMechanicAvailability, 
-  updateMechanicProfile,
 };
