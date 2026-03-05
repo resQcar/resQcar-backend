@@ -4,9 +4,8 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 
-const bookingsRoutes = require("./routes/bookings.routes");
-const jobsRoutes = require("./routes/jobs.routes"); 
-const mechanicsRoutes = require("./routes/mechanics.routes");
+// Initialize Firebase Admin once
+require('./config/firebase');
 
 const app = express();
 
