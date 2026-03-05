@@ -1,11 +1,13 @@
+// src/server.js
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
 require("dotenv").config();
 
-const app = express(); // ✅ app must be initialized BEFORE app.use()
+// Initialize Firebase Admin once
+require("./config/firebase");
 
-// Middlewares
+const app = express();
 app.use(cors());
 app.use(express.json());
 
@@ -22,12 +24,8 @@ app.use("/api/users", userRoutes);
 // Health check
 app.get("/", (req, res) => res.send("resQcar backend running ✅"));
 
-// ✅ Error handler (keep at bottom)
-app.use((err, req, res, next) => {
-  if (!err) return next();
-  const status = err.statusCode || err.status || 400;
-  res.status(status).json({ message: err.message || "Request failed." });
-});
+app.use("/api/auth", require("./routes/auth.routes"));
+app.use("/api/users", require("./routes/user.routes"));
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

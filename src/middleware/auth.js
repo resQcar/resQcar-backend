@@ -1,26 +1,17 @@
 // src/middleware/auth.js
-const admin = require("../config/firebase");
+const { admin } = require("../config/firebase");
 
-async function requireAuth(req, res, next) {
+module.exports = async function auth(req, res, next) {
   try {
     const header = req.headers.authorization || "";
-    const [type, token] = header.split(" ");
-
-    if (type !== "Bearer" || !token) {
-      return res
-        .status(401)
-        .json({ message: "Missing Authorization header. Use: Bearer <token>" });
+    if (!header.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "No token provided" });
     }
-
+    const token = header.split(" ")[1];
     const decoded = await admin.auth().verifyIdToken(token);
     req.user = decoded;
     next();
   } catch (err) {
-    return res.status(401).json({
-      message: "Unauthorized. Invalid/expired token.",
-      error: String(err?.message || err),
-    });
+    return res.status(401).json({ message: "Invalid or expired token" });
   }
-}
-
-module.exports = { requireAuth };
+};
