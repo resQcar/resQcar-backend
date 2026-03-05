@@ -9,11 +9,11 @@ router.post('/create-intent', paymentController.createPaymentIntent);
 // POST /api/payments/confirm                -> confirm a Stripe payment
 router.post('/confirm', paymentController.confirmPayment);
 
+// POST /api/payments/ratings                -> submit a rating and review
+router.post('/ratings', paymentController.submitRating);
+
 // GET  /api/payments/history                -> get payment history
 router.get('/history', paymentController.getPaymentHistory);
-router.get('/service-history/customer', paymentController.getServiceHistoryCustomer);
-router.get('/service-history/mechanic', paymentController.getServiceHistoryMechanic);
-router.post('/ratings', paymentController.submitRating);
 
 // GET  /api/payments/customer-history       -> get customer service history
 router.get('/customer-history', paymentController.getServiceHistoryCustomer);
