@@ -21,9 +21,9 @@ function initFirebase() {
       credential: admin.credential.cert(serviceAccount),
     });
 
-    console.log("✅ Firebase connected");
+    console.log(" Firebase connected");
   } catch (error) {
-    console.error("❌ Firebase error:", error.message);
+    console.error("Firebase error:", error.message);
   }
 }
 
@@ -34,3 +34,11 @@ const db = admin.firestore();
 const bucket = admin.storage().bucket();
 
 module.exports = { admin, auth, db, bucket };
+
+
+
+
+
+
+
+
