@@ -21,6 +21,9 @@ router.get('/customer-history', paymentController.getServiceHistoryCustomer);
 // GET  /api/payments/mechanic-history       -> get mechanic service history
 router.get('/mechanic-history', paymentController.getServiceHistoryMechanic);
 
+// GET  /api/payments/mechanics/:id/ratings  -> get mechanic ratings by id
+router.get('/mechanics/:id/ratings', paymentController.getMechanicRatings);
+
 // GET  /api/payments/:id/status             -> get payment status by id
 router.get('/:id/status', paymentController.getPaymentStatus);
 
