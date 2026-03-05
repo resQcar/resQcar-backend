@@ -9,7 +9,7 @@ function initFirebase() {
     console.log("🔍 Looking for key at:", serviceAccountPath);
 
     if (!serviceAccountPath) {
-      throw new Error("FIREBASE_SERVICE_ACCOUNT is missing in .env");
+      throw new Error("Missing FIREBASE_SERVICE_ACCOUNT in .env");
     }
 
     const resolvedPath = path.resolve(serviceAccountPath);
@@ -19,12 +19,11 @@ function initFirebase() {
 
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
-      storageBucket: `${serviceAccount.project_id}.appspot.com`,
     });
 
+    console.log("✅ Firebase connected");
   } catch (error) {
-    console.error("❌ Firebase init error:", error.message);
-    throw error;
+    console.error("❌ Firebase error:", error.message);
   }
 }
 

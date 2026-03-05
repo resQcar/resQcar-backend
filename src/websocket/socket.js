@@ -1,54 +1,46 @@
 // src/websocket/socket.js
-const WebSocket = require("ws");
+const { Server } = require('socket.io');
 
-function initWebSocket(server) {
-  const wss = new WebSocket.Server({ server });
-  const channels = new Map(); // channel -> Set(ws)
+let io;
 
-  function join(ws, channel) {
-    if (!channels.has(channel)) channels.set(channel, new Set());
-    channels.get(channel).add(ws);
-    ws.__channels = ws.__channels || new Set();
-    ws.__channels.add(channel);
-  }
+const initSocket = (server) => {
+  io = new Server(server, {
+    cors: {
+      origin: '*', // In production, restrict this to your Flutter app's origin
+    },
+  });
 
-  function leaveAll(ws) {
-    if (!ws.__channels) return;
-    for (const ch of ws.__channels) {
-      const set = channels.get(ch);
-      if (set) set.delete(ws);
-      if (set && set.size === 0) channels.delete(ch);
-    }
-  }
+  io.on('connection', (socket) => {
+    console.log(`🔌 New client connected: ${socket.id}`);
 
-  function emit(channel, payload) {
-    const set = channels.get(channel);
-    if (!set) return;
-    const msg = JSON.stringify(payload);
-    for (const client of set) {
-      if (client.readyState === WebSocket.OPEN) client.send(msg);
-    }
-  }
-
-  wss.on("connection", (ws) => {
-    ws.on("message", (raw) => {
-      try {
-        const data = JSON.parse(raw.toString());
-
-        // Client sends: { "type":"join", "channel":"mechanic:mechanic_1" }
-        if (data.type === "join" && typeof data.channel === "string") {
-          join(ws, data.channel);
-          ws.send(JSON.stringify({ type: "joined", channel: data.channel }));
-        }
-      } catch (e) {
-        ws.send(JSON.stringify({ type: "error", message: "Invalid JSON" }));
+    // Flutter app sends their userId so we can send them targeted events
+    // Customer joins like: socket.emit('join', { userId: 'abc', role: 'customer' })
+    // Mechanic joins like: socket.emit('join', { userId: 'xyz', role: 'mechanic' })
+    socket.on('join', ({ userId, role }) => {
+      if (role === 'customer') {
+        socket.join(`customer_${userId}`);
+        console.log(`👤 Customer ${userId} joined room`);
+      } else if (role === 'mechanic') {
+        socket.join(`mechanic_${userId}`);
+        console.log(`🔧 Mechanic ${userId} joined room`);
       }
     });
 
-    ws.on("close", () => leaveAll(ws));
+    socket.on('disconnect', () => {
+      console.log(`❌ Client disconnected: ${socket.id}`);
+    });
   });
 
-  return { emit };
-}
+  console.log('✅ WebSocket (Socket.IO) initialized');
+  return io;
+};
 
-module.exports = { initWebSocket };
+const getIO = () => {
+  if (!io) {
+    console.warn('⚠️ Socket.IO not initialized yet');
+    return null;
+  }
+  return io;
+};
+
+module.exports = { initSocket, getIO };
