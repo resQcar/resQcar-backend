@@ -21,10 +21,10 @@ const sendNotification = async (fcmToken, title, body, data = {}) => {
     };
 
     const response = await admin.messaging().send(message);
-    console.log('✅ Notification sent successfully:', response);
+    console.log('Notification sent successfully:', response);
     return response;
   } catch (error) {
-    console.error('❌ Error sending notification:', error);
+    console.error('Error sending notification:', error);
     return null;
   }
 };
@@ -33,7 +33,7 @@ const sendNotification = async (fcmToken, title, body, data = {}) => {
 const notifyMechanicNewJob = async (mechanicFcmToken, bookingId, customerName, location) => {
   return sendNotification(
     mechanicFcmToken,
-    '🆕 New Job Request!',
+    'New Job Request!',
     `${customerName} needs help at ${location}`,
     { bookingId, type: 'NEW_JOB_REQUEST' }
   );
@@ -43,7 +43,7 @@ const notifyMechanicNewJob = async (mechanicFcmToken, bookingId, customerName, l
 const notifyCustomerAccepted = async (customerFcmToken, bookingId, mechanicName) => {
   return sendNotification(
     customerFcmToken,
-    '✅ Mechanic Found!',
+    ' Mechanic Found!',
     `${mechanicName} has accepted your request and is on the way!`,
     { bookingId, type: 'JOB_ACCEPTED' }
   );
@@ -53,7 +53,7 @@ const notifyCustomerAccepted = async (customerFcmToken, bookingId, mechanicName)
 const notifyCustomerEnRoute = async (customerFcmToken, bookingId) => {
   return sendNotification(
     customerFcmToken,
-    '🚗 Mechanic is Coming!',
+    'Mechanic is Coming!',
     'Your mechanic is heading to your location',
     { bookingId, type: 'EN_ROUTE' }
   );
@@ -63,7 +63,7 @@ const notifyCustomerEnRoute = async (customerFcmToken, bookingId) => {
 const notifyCustomerArrived = async (customerFcmToken, bookingId) => {
   return sendNotification(
     customerFcmToken,
-    '📍 Mechanic Arrived!',
+    'Mechanic Arrived!',
     'Your mechanic has arrived at your location',
     { bookingId, type: 'ARRIVED' }
   );
@@ -73,7 +73,7 @@ const notifyCustomerArrived = async (customerFcmToken, bookingId) => {
 const notifyCustomerRepairing = async (customerFcmToken, bookingId) => {
   return sendNotification(
     customerFcmToken,
-    '🔧 Repair Started!',
+    'Repair Started!',
     'Your mechanic has started working on your vehicle',
     { bookingId, type: 'REPAIRING' }
   );
@@ -83,7 +83,7 @@ const notifyCustomerRepairing = async (customerFcmToken, bookingId) => {
 const notifyCustomerCompleted = async (customerFcmToken, bookingId) => {
   return sendNotification(
     customerFcmToken,
-    '✅ Repair Complete!',
+    'Repair Complete!',
     'Your vehicle repair has been completed successfully!',
     { bookingId, type: 'COMPLETED' }
   );
