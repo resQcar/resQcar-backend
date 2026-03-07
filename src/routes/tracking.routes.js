@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const trackingController = require('../controllers/tracking.controller');
-const { authenticate } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 
 // Update mechanic's live location
-router.post('/update-location', authenticate, trackingController.updateMechanicLocation);
+router.post('/update-location', requireAuth, trackingController.updateMechanicLocation);
 
 module.exports = router;
