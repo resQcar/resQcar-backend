@@ -93,4 +93,9 @@ npm run dev
 
 The server will start on the configured port.
 
+# resQcar 
+*A location-based emergency mechanic and roadside assistance mobile application.*
+
+🔗 Live Demo: www.resqcar.com/ 
+
 Backend development for the **resQcar project**.
