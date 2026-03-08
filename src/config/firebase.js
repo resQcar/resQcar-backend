@@ -17,10 +17,10 @@ function initFirebase() {
 
     const serviceAccount = require(resolvedPath);
 
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-
+   admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: process.env.FIREBASE_DATABASE_URL
+});
     console.log(" Firebase connected");
   } catch (error) {
     console.error("Firebase error:", error.message);
