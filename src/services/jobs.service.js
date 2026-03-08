@@ -47,3 +47,33 @@ exports.requestAdditionalWork = async (jobId, description, estimatedCost) => {
   await additionalWorkRef.set(additionalWork);
   return additionalWork;
 };
+const path = require('path');
+const fs = require('fs');
+
+// Upload job photos to local storage
+exports.uploadJobPhotos = async (jobId, files) => {
+  const uploadDir = path.join(__dirname, '../../uploads/jobs', jobId);
+
+  // Create directory if it doesn't exist
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+
+  const photoUrls = [];
+
+  for (const file of files) {
+    const filename = `${Date.now()}-${file.originalname}`;
+    const filepath = path.join(uploadDir, filename);
+    fs.writeFileSync(filepath, file.buffer);
+    photoUrls.push(`/uploads/jobs/${jobId}/${filename}`);
+  }
+
+  // Save photo URLs to Firestore
+  const jobRef = db.collection('jobs').doc(jobId);
+  await jobRef.update({
+    photos: photoUrls,
+    updatedAt: new Date().toISOString()
+  });
+
+  return photoUrls;
+};
