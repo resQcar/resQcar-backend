@@ -78,4 +78,34 @@ async function acceptOffer(req, res) {
   }
 }
 
-module.exports = { acceptOffer };
+async function requestAdditionalWork(req, res) {
+  try {
+    const jobId = req.params.id;
+    const { description, estimatedCost } = req.body;
+
+    if (!description || !estimatedCost) {
+      return res.status(400).json({
+        success: false,
+        message: 'description and estimatedCost are required'
+      });
+    }
+
+    const result = await jobsService.requestAdditionalWork(jobId, description, estimatedCost);
+
+    res.status(201).json({
+      success: true,
+      message: 'Additional work requested successfully',
+      data: result
+    });
+  } catch (error) {
+    console.error('Error requesting additional work:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to request additional work',
+      error: error.message
+    });
+  }
+}
+
+// UPDATE module.exports at bottom
+module.exports = { acceptOffer, updateJobStatus, completeJob, requestAdditionalWork };
