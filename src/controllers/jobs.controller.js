@@ -1,4 +1,5 @@
 const { db } = require("../config/firebase");
+const jobsService = require('../services/jobs.service');
 
 async function acceptOffer(req, res) {
   const { offerId } = req.params;
@@ -79,3 +80,34 @@ async function acceptOffer(req, res) {
 }
 
 module.exports = { acceptOffer };
+// PUT /api/jobs/:id/status - Update job status (En Route)
+exports.updateJobStatus = async (req, res) => {
+  try {
+    const jobId = req.params.id;
+    const { status } = req.body;
+
+    // Validate status
+    const validStatuses = ['en-route', 'arrived', 'in-progress', 'completed', 'cancelled'];
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+      });
+    }
+
+    const updatedJob = await jobsService.updateJobStatus(jobId, status);
+
+    res.status(200).json({
+      success: true,
+      message: `Job status updated to ${status}`,
+      data: updatedJob
+    });
+  } catch (error) {
+    console.error('Error updating job status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update job status',
+      error: error.message
+    });
+  }
+};
