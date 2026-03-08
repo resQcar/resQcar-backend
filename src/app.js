@@ -38,6 +38,8 @@ app.use('/api/jobs', require('./routes/jobs.routes'));
 // Payment routes (Devi)
 app.use('/api/payments', require('./routes/payment.routes'));
 
+app.use('/api/tracking', require('./routes/tracking.routes'));
+
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err.message);
