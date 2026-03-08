@@ -124,4 +124,33 @@ async function requestAdditionalWork(req, res) {
   }
 }
 
-module.exports = { acceptOffer, updateJobStatus, completeJob, requestAdditionalWork };
+async function uploadJobPhotos(req, res) {
+  try {
+    const jobId = req.params.id;
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No photos uploaded'
+      });
+    }
+
+    const photoUrls = await jobsService.uploadJobPhotos(jobId, req.files);
+
+    res.status(201).json({
+      success: true,
+      message: `${photoUrls.length} photo(s) uploaded successfully`,
+      data: photoUrls
+    });
+  } catch (error) {
+    console.error('Error uploading photos:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload photos',
+      error: error.message
+    });
+  }
+}
+
+// UPDATE module.exports at bottom
+module.exports = { acceptOffer, updateJobStatus, completeJob, requestAdditionalWork, uploadJobPhotos };
