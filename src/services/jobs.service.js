@@ -1,6 +1,9 @@
+// src/services/jobs.service.js
 const { db } = require('../config/firebase');
+const path = require('path');
+const fs = require('fs');
 
-// Update job status
+// Update job status - PUT /api/jobs/:id/status
 exports.updateJobStatus = async (jobId, status) => {
   const jobRef = db.collection('jobs').doc(jobId);
   const job = await jobRef.get();
@@ -13,7 +16,7 @@ exports.updateJobStatus = async (jobId, status) => {
   return { id: updatedJob.id, ...updatedJob.data() };
 };
 
-// Complete job
+// Complete job - PUT /api/jobs/:id/complete
 exports.completeJob = async (jobId, totalAmount, notes) => {
   const jobRef = db.collection('jobs').doc(jobId);
   const job = await jobRef.get();
@@ -28,12 +31,12 @@ exports.completeJob = async (jobId, totalAmount, notes) => {
   const completedJob = await jobRef.get();
   return { id: completedJob.id, ...completedJob.data() };
 };
-// Request additional work
+
+// Request additional work - POST /api/jobs/:id/additional-work
 exports.requestAdditionalWork = async (jobId, description, estimatedCost) => {
   const jobRef = db.collection('jobs').doc(jobId);
   const job = await jobRef.get();
   if (!job.exists) throw new Error('Job not found');
-
   const additionalWorkRef = db.collection('additionalWork').doc();
   const additionalWork = {
     id: additionalWorkRef.id,
@@ -43,37 +46,27 @@ exports.requestAdditionalWork = async (jobId, description, estimatedCost) => {
     status: 'pending',
     requestedAt: new Date().toISOString()
   };
-
   await additionalWorkRef.set(additionalWork);
   return additionalWork;
 };
-const path = require('path');
-const fs = require('fs');
 
-// Upload job photos to local storage
+// Upload job photos - POST /api/jobs/:id/photos
 exports.uploadJobPhotos = async (jobId, files) => {
   const uploadDir = path.join(__dirname, '../../uploads/jobs', jobId);
-
-  // Create directory if it doesn't exist
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
   }
-
   const photoUrls = [];
-
   for (const file of files) {
     const filename = `${Date.now()}-${file.originalname}`;
     const filepath = path.join(uploadDir, filename);
     fs.writeFileSync(filepath, file.buffer);
     photoUrls.push(`/uploads/jobs/${jobId}/${filename}`);
   }
-
-  // Save photo URLs to Firestore
   const jobRef = db.collection('jobs').doc(jobId);
   await jobRef.update({
     photos: photoUrls,
     updatedAt: new Date().toISOString()
   });
-
   return photoUrls;
 };
