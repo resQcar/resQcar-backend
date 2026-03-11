@@ -1,3 +1,4 @@
+// src/controllers/jobs.controller.js
 const { db } = require("../config/firebase");
 const jobsService = require('../services/jobs.service');
 
@@ -58,7 +59,7 @@ async function acceptOffer(req, res) {
   }
 }
 
-// Shevon's functions
+// Shevon's function - PUT /api/jobs/:id/status
 async function updateJobStatus(req, res) {
   try {
     const jobId = req.params.id;
@@ -86,6 +87,7 @@ async function updateJobStatus(req, res) {
   }
 }
 
+// Shevon's function - PUT /api/jobs/:id/complete
 async function completeJob(req, res) {
   try {
     const jobId = req.params.id;
@@ -112,4 +114,57 @@ async function completeJob(req, res) {
   }
 }
 
-module.exports = { acceptOffer, updateJobStatus, completeJob };
+// Shevon's function - POST /api/jobs/:id/additional-work
+async function requestAdditionalWork(req, res) {
+  try {
+    const jobId = req.params.id;
+    const { description, estimatedCost } = req.body;
+    if (!description || !estimatedCost) {
+      return res.status(400).json({
+        success: false,
+        message: 'description and estimatedCost are required'
+      });
+    }
+    const result = await jobsService.requestAdditionalWork(jobId, description, estimatedCost);
+    res.status(201).json({
+      success: true,
+      message: 'Additional work requested successfully',
+      data: result
+    });
+  } catch (error) {
+    console.error('Error requesting additional work:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to request additional work',
+      error: error.message
+    });
+  }
+}
+
+// Shevon's function - POST /api/jobs/:id/photos
+async function uploadJobPhotos(req, res) {
+  try {
+    const jobId = req.params.id;
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No photos uploaded'
+      });
+    }
+    const photoUrls = await jobsService.uploadJobPhotos(jobId, req.files);
+    res.status(201).json({
+      success: true,
+      message: `${photoUrls.length} photo(s) uploaded successfully`,
+      data: photoUrls
+    });
+  } catch (error) {
+    console.error('Error uploading photos:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload photos',
+      error: error.message
+    });
+  }
+}
+
+module.exports = { acceptOffer, updateJobStatus, completeJob, requestAdditionalWork, uploadJobPhotos };
