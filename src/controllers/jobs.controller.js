@@ -9,15 +9,26 @@ async function acceptOffer(req, res) {
     const result = await db.runTransaction(async (transaction) => {
       const offerRef = db.collection("offers").doc(offerId);
       const offerSnap = await transaction.get(offerRef);
-      if (!offerSnap.exists) throw new Error("OFFER_NOT_FOUND");
+      if (!offerSnap.exists) {
+        throw new Error("OFFER_NOT_FOUND");
+      }
       const offer = offerSnap.data();
-      if (offer.status !== "OFFERED") throw new Error("OFFER_ALREADY_PROCESSED");
+      if (offer.status !== "OFFERED") {
+        throw new Error("OFFER_ALREADY_PROCESSED");
+      }
       const bookingRef = db.collection("bookings").doc(offer.bookingId);
       const bookingSnap = await transaction.get(bookingRef);
-      if (!bookingSnap.exists) throw new Error("BOOKING_NOT_FOUND");
+      if (!bookingSnap.exists) {
+        throw new Error("BOOKING_NOT_FOUND");
+      }
       const booking = bookingSnap.data();
-      if (booking.status === "ASSIGNED") throw new Error("BOOKING_ALREADY_ASSIGNED");
-      transaction.update(offerRef, { status: "ACCEPTED", acceptedAt: new Date().toISOString() });
+      if (booking.status === "ASSIGNED") {
+        throw new Error("BOOKING_ALREADY_ASSIGNED");
+      }
+      transaction.update(offerRef, {
+        status: "ACCEPTED",
+        acceptedAt: new Date().toISOString(),
+      });
       const jobRef = db.collection("jobs").doc();
       const job = {
         jobId: jobRef.id,
@@ -38,14 +49,17 @@ async function acceptOffer(req, res) {
     return res.json({ success: true, job: result });
   } catch (error) {
     console.error(error);
-    if (error.message === "OFFER_NOT_FOUND") return res.status(404).json({ error: "Offer not found" });
-    if (error.message === "OFFER_ALREADY_PROCESSED") return res.status(409).json({ error: "Offer already processed" });
-    if (error.message === "BOOKING_ALREADY_ASSIGNED") return res.status(409).json({ error: "Booking already assigned" });
+    if (error.message === "OFFER_NOT_FOUND")
+      return res.status(404).json({ error: "Offer not found" });
+    if (error.message === "OFFER_ALREADY_PROCESSED")
+      return res.status(409).json({ error: "Offer already processed" });
+    if (error.message === "BOOKING_ALREADY_ASSIGNED")
+      return res.status(409).json({ error: "Booking already assigned" });
     return res.status(500).json({ error: "Server error" });
   }
 }
 
-// Shevon's functions
+// Shevon's function - PUT /api/jobs/:id/status
 async function updateJobStatus(req, res) {
   try {
     const jobId = req.params.id;
@@ -73,6 +87,7 @@ async function updateJobStatus(req, res) {
   }
 }
 
+// Shevon's function - PUT /api/jobs/:id/complete
 async function completeJob(req, res) {
   try {
     const jobId = req.params.id;
@@ -99,6 +114,7 @@ async function completeJob(req, res) {
   }
 }
 
+// Shevon's function - POST /api/jobs/:id/additional-work
 async function requestAdditionalWork(req, res) {
   try {
     const jobId = req.params.id;
@@ -125,4 +141,30 @@ async function requestAdditionalWork(req, res) {
   }
 }
 
-module.exports = { acceptOffer, updateJobStatus, completeJob, requestAdditionalWork };
+// Shevon's function - POST /api/jobs/:id/photos
+async function uploadJobPhotos(req, res) {
+  try {
+    const jobId = req.params.id;
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No photos uploaded'
+      });
+    }
+    const photoUrls = await jobsService.uploadJobPhotos(jobId, req.files);
+    res.status(201).json({
+      success: true,
+      message: `${photoUrls.length} photo(s) uploaded successfully`,
+      data: photoUrls
+    });
+  } catch (error) {
+    console.error('Error uploading photos:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload photos',
+      error: error.message
+    });
+  }
+}
+
+module.exports = { acceptOffer, updateJobStatus, completeJob, requestAdditionalWork, uploadJobPhotos };
