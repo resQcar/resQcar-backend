@@ -23,7 +23,7 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 // Auth routes (Supuni)
 app.use('/api/auth', require('./routes/auth.routes'));
 
-// User routes (users.routes.js is the correct one)
+// User routes
 app.use('/api/users', require('./routes/users.routes'));
 
 // Bookings routes (Imanjith + Nicol combined)
@@ -37,6 +37,9 @@ app.use('/api/jobs', require('./routes/jobs.routes'));
 
 // Payment routes (Devi)
 app.use('/api/payments', require('./routes/payment.routes'));
+
+//
+app.use('/api/tracking', require('./routes/tracking.routes'));
 
 // Global error handler
 app.use((err, req, res, next) => {
