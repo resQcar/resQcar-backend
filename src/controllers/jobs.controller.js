@@ -1,3 +1,4 @@
+// src/controllers/jobs.controller.js
 const { db } = require("../config/firebase");
 const jobsService = require('../services/jobs.service');
 
