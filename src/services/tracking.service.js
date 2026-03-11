@@ -9,3 +9,10 @@ exports.updateLocation = async (mechanicId, latitude, longitude) => {
     updatedAt: Date.now()
   });
 };
+
+// Get mechanic's live location from Realtime Database
+exports.getLocation = async (mechanicId) => {
+  const locationRef = realtimeDb.ref(`locations/${mechanicId}`);
+  const snapshot = await locationRef.once('value');
+  return snapshot.val();
+};
