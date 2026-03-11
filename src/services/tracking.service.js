@@ -15,4 +15,8 @@ exports.getLocation = async (mechanicId) => {
   const locationRef = realtimeDb.ref(`locations/${mechanicId}`);
   const snapshot = await locationRef.once('value');
   return snapshot.val();
+<<<<<<< feature/shevon-request-additional-work
 };
+=======
+};
+>>>>>>> main

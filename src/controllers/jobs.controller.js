@@ -45,7 +45,7 @@ async function acceptOffer(req, res) {
   }
 }
 
-// PUT /api/jobs/:id/status - Update job status (En Route)
+// Shevon's functions
 async function updateJobStatus(req, res) {
   try {
     const jobId = req.params.id;
@@ -73,5 +73,56 @@ async function updateJobStatus(req, res) {
   }
 }
 
-// Export all functions together at the bottom
-module.exports = { acceptOffer, updateJobStatus };
+async function completeJob(req, res) {
+  try {
+    const jobId = req.params.id;
+    const { totalAmount, notes } = req.body;
+    if (!totalAmount) {
+      return res.status(400).json({
+        success: false,
+        message: 'totalAmount is required'
+      });
+    }
+    const completedJob = await jobsService.completeJob(jobId, totalAmount, notes);
+    res.status(200).json({
+      success: true,
+      message: 'Job completed successfully',
+      data: completedJob
+    });
+  } catch (error) {
+    console.error('Error completing job:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to complete job',
+      error: error.message
+    });
+  }
+}
+
+async function requestAdditionalWork(req, res) {
+  try {
+    const jobId = req.params.id;
+    const { description, estimatedCost } = req.body;
+    if (!description || !estimatedCost) {
+      return res.status(400).json({
+        success: false,
+        message: 'description and estimatedCost are required'
+      });
+    }
+    const result = await jobsService.requestAdditionalWork(jobId, description, estimatedCost);
+    res.status(201).json({
+      success: true,
+      message: 'Additional work requested successfully',
+      data: result
+    });
+  } catch (error) {
+    console.error('Error requesting additional work:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to request additional work',
+      error: error.message
+    });
+  }
+}
+
+module.exports = { acceptOffer, updateJobStatus, completeJob, requestAdditionalWork };

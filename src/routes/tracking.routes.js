@@ -9,4 +9,7 @@ router.post('/update-location', requireAuth, trackingController.updateMechanicLo
 // Get mechanic's live location (for customer)
 router.get('/mechanic/:id', requireAuth, trackingController.getLiveLocation);
 
+// Calculate ETA between two points
+router.get('/eta', requireAuth, trackingController.getETA);
+
 module.exports = router;

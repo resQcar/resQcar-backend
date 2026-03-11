@@ -6,7 +6,4 @@ router.post("/register", controller.register);
 router.post("/login", controller.login);
 router.put("/select-user-type", requireAuth, controller.selectUserType);
 
-// PUT /api/auth/select-user-type
-router.put("/select-user-type", requireAuth, controller.selectUserType);
-
 module.exports = router;
