@@ -7,7 +7,6 @@ exports.updateMechanicLocation = async (req, res) => {
     const { latitude, longitude } = req.body;
     const mechanicId = req.user.uid; // from auth middleware
 
-    // Validate location data
     if (!latitude || !longitude) {
       return res.status(400).json({
         success: false,
@@ -36,12 +35,14 @@ exports.getLiveLocation = async (req, res) => {
   try {
     const mechanicId = req.params.id;
     const location = await trackingService.getLocation(mechanicId);
+
     if (!location) {
       return res.status(404).json({
         success: false,
         message: 'Location not found for this mechanic'
       });
     }
+
     res.status(200).json({
       success: true,
       data: location
@@ -60,16 +61,19 @@ exports.getLiveLocation = async (req, res) => {
 exports.getETA = async (req, res) => {
   try {
     const { lat1, lon1, lat2, lon2 } = req.query;
+
     if (!lat1 || !lon1 || !lat2 || !lon2) {
       return res.status(400).json({
         success: false,
         message: 'lat1, lon1, lat2, lon2 are all required'
       });
     }
+
     const eta = calculateETA(
       parseFloat(lat1), parseFloat(lon1),
       parseFloat(lat2), parseFloat(lon2)
     );
+
     res.status(200).json({
       success: true,
       data: eta
