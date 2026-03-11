@@ -13,11 +13,12 @@ function initFirebase() {
     const resolvedPath = path.resolve(serviceAccountPath);
     console.log("Resolved path:", resolvedPath);
     const serviceAccount = require(resolvedPath);
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      databaseURL: process.env.FIREBASE_DATABASE_URL
-    });
-    console.log("Firebase connected");
+
+   admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: process.env.FIREBASE_DATABASE_URL
+});
+    console.log(" Firebase connected");
   } catch (error) {
     console.error("Firebase error:", error.message);
   }
