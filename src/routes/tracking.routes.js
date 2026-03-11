@@ -1,15 +1,16 @@
+// src/routes/tracking.routes.js
 const express = require('express');
 const router = express.Router();
 const trackingController = require('../controllers/tracking.controller');
 const { requireAuth } = require('../middleware/auth');
 
-// Update mechanic's live location
+// POST /api/tracking/update-location - Update mechanic's live location
 router.post('/update-location', requireAuth, trackingController.updateMechanicLocation);
 
-// Get mechanic's live location (for customer)
+// GET /api/tracking/mechanic/:id - Get mechanic's live location (for customer)
 router.get('/mechanic/:id', requireAuth, trackingController.getLiveLocation);
 
-// Calculate ETA between two points
+// GET /api/tracking/eta - Calculate ETA between two points
 router.get('/eta', requireAuth, trackingController.getETA);
 
 module.exports = router;
