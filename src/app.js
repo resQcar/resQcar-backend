@@ -23,7 +23,7 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 // Auth routes (Supuni)
 app.use('/api/auth', require('./routes/auth.routes'));
 
-// User routes (users.routes.js is the correct one)
+// User routes
 app.use('/api/users', require('./routes/users.routes'));
 
 // Bookings routes (Imanjith + Nicol combined)
