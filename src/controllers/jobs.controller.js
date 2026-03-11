@@ -8,15 +8,26 @@ async function acceptOffer(req, res) {
     const result = await db.runTransaction(async (transaction) => {
       const offerRef = db.collection("offers").doc(offerId);
       const offerSnap = await transaction.get(offerRef);
-      if (!offerSnap.exists) throw new Error("OFFER_NOT_FOUND");
+      if (!offerSnap.exists) {
+        throw new Error("OFFER_NOT_FOUND");
+      }
       const offer = offerSnap.data();
-      if (offer.status !== "OFFERED") throw new Error("OFFER_ALREADY_PROCESSED");
+      if (offer.status !== "OFFERED") {
+        throw new Error("OFFER_ALREADY_PROCESSED");
+      }
       const bookingRef = db.collection("bookings").doc(offer.bookingId);
       const bookingSnap = await transaction.get(bookingRef);
-      if (!bookingSnap.exists) throw new Error("BOOKING_NOT_FOUND");
+      if (!bookingSnap.exists) {
+        throw new Error("BOOKING_NOT_FOUND");
+      }
       const booking = bookingSnap.data();
-      if (booking.status === "ASSIGNED") throw new Error("BOOKING_ALREADY_ASSIGNED");
-      transaction.update(offerRef, { status: "ACCEPTED", acceptedAt: new Date().toISOString() });
+      if (booking.status === "ASSIGNED") {
+        throw new Error("BOOKING_ALREADY_ASSIGNED");
+      }
+      transaction.update(offerRef, {
+        status: "ACCEPTED",
+        acceptedAt: new Date().toISOString(),
+      });
       const jobRef = db.collection("jobs").doc();
       const job = {
         jobId: jobRef.id,
@@ -37,9 +48,12 @@ async function acceptOffer(req, res) {
     return res.json({ success: true, job: result });
   } catch (error) {
     console.error(error);
-    if (error.message === "OFFER_NOT_FOUND") return res.status(404).json({ error: "Offer not found" });
-    if (error.message === "OFFER_ALREADY_PROCESSED") return res.status(409).json({ error: "Offer already processed" });
-    if (error.message === "BOOKING_ALREADY_ASSIGNED") return res.status(409).json({ error: "Booking already assigned" });
+    if (error.message === "OFFER_NOT_FOUND")
+      return res.status(404).json({ error: "Offer not found" });
+    if (error.message === "OFFER_ALREADY_PROCESSED")
+      return res.status(409).json({ error: "Offer already processed" });
+    if (error.message === "BOOKING_ALREADY_ASSIGNED")
+      return res.status(409).json({ error: "Booking already assigned" });
     return res.status(500).json({ error: "Server error" });
   }
 }
@@ -76,16 +90,13 @@ async function completeJob(req, res) {
   try {
     const jobId = req.params.id;
     const { totalAmount, notes } = req.body;
-
     if (!totalAmount) {
       return res.status(400).json({
         success: false,
         message: 'totalAmount is required'
       });
     }
-
     const completedJob = await jobsService.completeJob(jobId, totalAmount, notes);
-
     res.status(200).json({
       success: true,
       message: 'Job completed successfully',
