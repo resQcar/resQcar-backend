@@ -23,7 +23,7 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 // Auth routes (Supuni)
 app.use('/api/auth', require('./routes/auth.routes'));
 
-// User routes
+// User routes (Supuni)
 app.use('/api/users', require('./routes/users.routes'));
 
 // Bookings routes (Imanjith + Nicol combined)
@@ -32,7 +32,7 @@ app.use('/api/bookings', require('./routes/bookings.routes'));
 // Mechanic dashboard routes (Nicol)
 app.use('/api/mechanics', require('./routes/mechanic.routes'));
 
-// Jobs routes (Imanjith)
+// Jobs routes (Imanjith + Shevon)
 app.use('/api/jobs', require('./routes/jobs.routes'));
 
 // Payment routes (Devi)
