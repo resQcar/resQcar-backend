@@ -1,3 +1,4 @@
+// src/routes/jobs.routes.js
 const router = require("express").Router();
 const { acceptOffer } = require("../controllers/jobs.controller");
 const { requireAuth } = require("../middleware/auth");
