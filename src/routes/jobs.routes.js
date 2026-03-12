@@ -1,26 +1,23 @@
-// src/routes/jobs.routes.js
-const router = require("express").Router();
-const { requireAuth } = require("../middleware/auth");
-const jobsController = require("../controllers/jobs.controller");
-const multer = require('multer');
+const express = require('express');
+const router = express.Router();
+const { requireAuth } = require('../middleware/auth');
 
-// Multer config - store in memory for upload
-const upload = multer({ storage: multer.memoryStorage() });
+const jobsController = require('../controllers/jobs.controller');
+const bookingsController = require('../controllers/bookings.controller');
 
-// Imanjith's route
-router.post("/offers/:offerId/accept", jobsController.acceptOffer);
+// Workload-required routes under /api/jobs
+router.put('/:id/accept', requireAuth, bookingsController.acceptJob);
+router.put('/:id/reject', requireAuth, bookingsController.rejectJob);
+router.put('/:id/arrive', requireAuth, bookingsController.arriveAtJob);
+router.get('/:id', requireAuth, bookingsController.getJobById);
 
-// Shevon's routes
-// PUT /api/jobs/:id/status - Update job status (en-route, arrived, in-progress, completed, cancelled)
-router.put("/:id/status", requireAuth, jobsController.updateJobStatus);
+// Existing job routes
+router.put('/:id/status', requireAuth, jobsController.updateJobStatus);
+router.put('/:id/complete', requireAuth, bookingsController.completeJob);
+router.post('/:id/additional-work', requireAuth, bookingsController.addAdditionalWork);
+router.post('/:id/photos', requireAuth, jobsController.uploadJobPhotos);
 
-// PUT /api/jobs/:id/complete - Complete a job
-router.put("/:id/complete", requireAuth, jobsController.completeJob);
-
-// POST /api/jobs/:id/additional-work - Request additional work
-router.post("/:id/additional-work", requireAuth, jobsController.requestAdditionalWork);
-
-// POST /api/jobs/:id/photos - Upload job photos
-router.post("/:id/photos", requireAuth, upload.array('photos', 5), jobsController.uploadJobPhotos);
+// Optional offer route
+router.put('/offers/:offerId/accept', requireAuth, jobsController.acceptOffer);
 
 module.exports = router;
