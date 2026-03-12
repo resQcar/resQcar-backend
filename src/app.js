@@ -41,6 +41,9 @@ app.use('/api/payments', require('./routes/payment.routes'));
 // Tracking routes (Shevon)
 app.use('/api/tracking', require('./routes/tracking.routes'));
 
+// Tow truck routes
+app.use('/api/tow-trucks', require('./routes/tow-trucks.routes'));
+
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err.message);
