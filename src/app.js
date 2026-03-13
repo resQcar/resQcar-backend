@@ -44,6 +44,12 @@ app.use('/api/tracking', require('./routes/tracking.routes'));
 // Tow truck routes
 app.use('/api/tow-trucks', require('./routes/tow-trucks.routes'));
 
+// Service history routes (Devi)
+app.use('/api/service-history', require('./routes/service-history.routes'));
+
+// Ratings routes (Devi)
+app.use('/api/ratings', require('./routes/ratings.routes'));
+
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err.message);
