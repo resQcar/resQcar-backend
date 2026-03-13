@@ -5,7 +5,7 @@ const fs = require('fs');
 
 // Update job status - PUT /api/jobs/:id/status
 exports.updateJobStatus = async (jobId, status) => {
-  const jobRef = db.collection('jobs').doc(jobId);
+  const jobRef = db.collection('bookings').doc(jobId);
   const job = await jobRef.get();
   if (!job.exists) throw new Error('Job not found');
   await jobRef.update({
@@ -18,11 +18,11 @@ exports.updateJobStatus = async (jobId, status) => {
 
 // Complete job - PUT /api/jobs/:id/complete
 exports.completeJob = async (jobId, totalAmount, notes) => {
-  const jobRef = db.collection('jobs').doc(jobId);
+  const jobRef = db.collection('bookings').doc(jobId);
   const job = await jobRef.get();
   if (!job.exists) throw new Error('Job not found');
   await jobRef.update({
-    status: 'completed',
+    status: 'COMPLETED',
     totalAmount,
     notes: notes || '',
     completedAt: new Date().toISOString(),
@@ -34,7 +34,7 @@ exports.completeJob = async (jobId, totalAmount, notes) => {
 
 // Request additional work - POST /api/jobs/:id/additional-work
 exports.requestAdditionalWork = async (jobId, description, estimatedCost) => {
-  const jobRef = db.collection('jobs').doc(jobId);
+  const jobRef = db.collection('bookings').doc(jobId);
   const job = await jobRef.get();
   if (!job.exists) throw new Error('Job not found');
   const additionalWorkRef = db.collection('additionalWork').doc();
@@ -63,7 +63,7 @@ exports.uploadJobPhotos = async (jobId, files) => {
     fs.writeFileSync(filepath, file.buffer);
     photoUrls.push(`/uploads/jobs/${jobId}/${filename}`);
   }
-  const jobRef = db.collection('jobs').doc(jobId);
+  const jobRef = db.collection('bookings').doc(jobId);
   await jobRef.update({
     photos: photoUrls,
     updatedAt: new Date().toISOString()
