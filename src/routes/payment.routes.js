@@ -2,30 +2,30 @@
 const express = require('express');
 const router = express.Router();
 const paymentController = require('../controllers/payment.controller');
+const { requireAuth } = require('../middleware/auth');
 
-// POST /api/payments/create-intent          -> create a Stripe payment intent
-router.post('/create-intent', paymentController.createPaymentIntent);
+// POST /api/payments/create-intent
+router.post('/create-intent', requireAuth, paymentController.createPaymentIntent);
 
-// POST /api/payments/confirm                -> confirm a Stripe payment
-router.post('/confirm', paymentController.confirmPayment);
+// POST /api/payments/confirm
+router.post('/confirm', requireAuth, paymentController.confirmPayment);
 
-// POST /api/payments/ratings                -> submit a rating and review
-router.post('/ratings', paymentController.submitRating);
-router.get('/ratings/mechanic/:id', paymentController.getMechanicRatings);
+// GET /api/payments/history
+router.get('/history', requireAuth, paymentController.getPaymentHistory);
 
-// GET  /api/payments/history                -> get payment history
-router.get('/history', paymentController.getPaymentHistory);
+// GET /api/payments/customer-history
+router.get('/customer-history', requireAuth, paymentController.getServiceHistoryCustomer);
 
-// GET  /api/payments/customer-history       -> get customer service history
-router.get('/customer-history', paymentController.getServiceHistoryCustomer);
+// GET /api/payments/mechanic-history
+router.get('/mechanic-history', requireAuth, paymentController.getServiceHistoryMechanic);
 
-// GET  /api/payments/mechanic-history       -> get mechanic service history
-router.get('/mechanic-history', paymentController.getServiceHistoryMechanic);
+// POST /api/payments/ratings
+router.post('/ratings', requireAuth, paymentController.submitRating);
 
-// GET  /api/payments/mechanics/:id/ratings  -> get mechanic ratings by id
-router.get('/mechanics/:id/ratings', paymentController.getMechanicRatings);
+// GET /api/payments/mechanics/:id/ratings  (NOTE: must be before /:id/status)
+router.get('/mechanics/:id/ratings', requireAuth, paymentController.getMechanicRatings);
 
-// GET  /api/payments/:id/status             -> get payment status by id
-router.get('/:id/status', paymentController.getPaymentStatus);
+// GET /api/payments/:id/status
+router.get('/:id/status', requireAuth, paymentController.getPaymentStatus);
 
 module.exports = router;

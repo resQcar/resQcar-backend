@@ -1,6 +1,7 @@
 // src/routes/mechanic.routes.js
 const express = require('express');
 const router = express.Router();
+const { requireAuth } = require('../middleware/auth');
 const {
   getJobRequests,
   getActiveJobs,
@@ -13,31 +14,19 @@ const {
   updateMechanicProfile,
 } = require('../controllers/mechanics.controller');
 
-// GET /api/mechanics/available           -> list all available and online mechanics
-router.get('/available', getAvailableMechanics);
+// Public-ish reads (still require auth)
+router.get('/available', requireAuth, getAvailableMechanics);
+router.get('/nearby', requireAuth, getNearbyMechanics);
 
-// GET /api/mechanics/nearby              -> list nearby mechanics by distance
-router.get('/nearby', getNearbyMechanics);
+// Mechanic-specific
+router.get('/job-requests', requireAuth, getJobRequests);
+router.get('/active-jobs', requireAuth, getActiveJobs);
+router.get('/dashboard', requireAuth, getDashboardStats);
+router.put('/availability', requireAuth, updateMechanicAvailability);
+router.put('/profile', requireAuth, updateMechanicProfile);
 
-// GET /api/mechanics/job-requests        -> list all pending job requests for a mechanic
-router.get('/job-requests', getJobRequests);
-
-// GET /api/mechanics/active-jobs         -> list mechanic's currently active jobs
-router.get('/active-jobs', getActiveJobs);
-
-// GET /api/mechanics/dashboard           -> dashboard stats (earnings, rating, totals)
-router.get('/dashboard', getDashboardStats);
-
-// GET /api/mechanics/:id/profile         -> get mechanic profile by id
-router.get('/:id/profile', getMechanicProfile);
-
-// GET /api/mechanics/:id/specializations -> get mechanic specializations by id
-router.get('/:id/specializations', getMechanicSpecializations);
-
-// PUT /api/mechanics/availability        -> update mechanic availability and online status
-router.put('/availability', updateMechanicAvailability);
-
-// PUT /api/mechanics/profile             -> update mechanic profile details
-router.put('/profile', updateMechanicProfile);
+// Must be after named routes
+router.get('/:id/profile', requireAuth, getMechanicProfile);
+router.get('/:id/specializations', requireAuth, getMechanicSpecializations);
 
 module.exports = router;
