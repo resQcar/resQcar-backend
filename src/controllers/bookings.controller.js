@@ -223,17 +223,18 @@ const updateJobStatus = async (req, res) => {
 const addAdditionalWork = async (req, res) => {
   try {
     const { id } = req.params;
-    const { mechanicId, description, additionalCost } = req.body;
+    const { description, additionalCost } = req.body;
+    const mechanicId = req.user.uid;
 
-    if (!mechanicId || !description) {
-      return res.status(400).json({ error: 'mechanicId and description are required' });
+    if (!description) {
+      return res.status(400).json({ error: 'description is required' });
     }
 
     const jobRef = db.collection('bookings').doc(id);
     const jobDoc = await jobRef.get();
 
     if (!jobDoc.exists) return res.status(404).json({ error: 'Job not found' });
-    if (jobDoc.data().mechanicId !== mechanicId) {
+    if (jobDoc.data().mechanicId && jobDoc.data().mechanicId !== mechanicId) {
       return res.status(403).json({ error: 'You are not assigned to this job' });
     }
 
@@ -269,9 +270,7 @@ const addAdditionalWork = async (req, res) => {
 const arriveAtJob = async (req, res) => {
   try {
     const { id } = req.params;
-    const { mechanicId } = req.body;
-
-    if (!mechanicId) return res.status(400).json({ error: 'mechanicId is required' });
+    const mechanicId = req.user.uid;
 
     const jobRef = db.collection('bookings').doc(id);
     const jobDoc = await jobRef.get();
@@ -280,7 +279,7 @@ const arriveAtJob = async (req, res) => {
 
     const jobData = jobDoc.data();
 
-    if (jobData.mechanicId !== mechanicId) {
+    if (jobData.mechanicId && jobData.mechanicId !== mechanicId) {
       return res.status(403).json({ error: 'You are not assigned to this job' });
     }
 
@@ -316,9 +315,9 @@ const arriveAtJob = async (req, res) => {
 const completeJob = async (req, res) => {
   try {
     const { id } = req.params;
-    const { mechanicId, finalAmount } = req.body;
-
-    if (!mechanicId) return res.status(400).json({ error: 'mechanicId is required' });
+    const { finalAmount } = req.body;
+    // Use the authenticated user's uid — no need to send mechanicId in body
+    const mechanicId = req.user.uid;
 
     const jobRef = db.collection('bookings').doc(id);
     const jobDoc = await jobRef.get();
@@ -327,7 +326,8 @@ const completeJob = async (req, res) => {
 
     const jobData = jobDoc.data();
 
-    if (jobData.mechanicId !== mechanicId) {
+    // Only enforce assignment check if the booking already has a mechanic assigned
+    if (jobData.mechanicId && jobData.mechanicId !== mechanicId) {
       return res.status(403).json({ error: 'You are not assigned to this job' });
     }
     if (jobData.status === 'COMPLETED') {
