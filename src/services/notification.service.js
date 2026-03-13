@@ -1,99 +1,78 @@
-const admin = require('firebase-admin');
+// src/services/notification.service.js
+// =====================================================
+// Push Notifications via Firebase Cloud Messaging (FCM)
+// =====================================================
+// Sends push notifications to customers when job status changes
 
-// Send notification to a single device
-const sendNotification = async (fcmToken, title, body, data = {}) => {
+const { admin } = require('../config/firebase');
+
+/**
+ * Send an FCM push notification.
+ * Silently skips if no token is provided (user may not have FCM set up).
+ */
+async function sendNotification(fcmToken, title, body, data = {}) {
+  if (!fcmToken) {
+    console.log(`[FCM] No token provided, skipping notification: "${title}"`);
+    return null;
+  }
+
   try {
-    if (!fcmToken) {
-      console.log('No FCM token provided, skipping notification');
-      return null;
-    }
-
     const message = {
-      notification: {
-        title,
-        body,
-      },
-      data: {
-        ...data,
-        clickAction: 'FLUTTER_NOTIFICATION_CLICK',
-      },
       token: fcmToken,
+      notification: { title, body },
+      data: { ...data, timestamp: String(Date.now()) },
+      android: { priority: 'high' },
+      apns: { payload: { aps: { sound: 'default' } } },
     };
 
     const response = await admin.messaging().send(message);
-    console.log('Notification sent successfully:', response);
+    console.log(`[FCM] Notification sent: ${response}`);
     return response;
   } catch (error) {
-    console.error('Error sending notification:', error);
+    // Don't crash the app if notification fails
+    console.error(`[FCM] Failed to send notification: ${error.message}`);
     return null;
   }
-};
+}
 
-// 1. Notify mechanic about new job request
-const notifyMechanicNewJob = async (mechanicFcmToken, bookingId, customerName, location) => {
-  return sendNotification(
-    mechanicFcmToken,
-    'New Job Request!',
-    `${customerName} needs help at ${location}`,
-    { bookingId, type: 'NEW_JOB_REQUEST' }
+// ── Notification helpers for each job status ──
+
+exports.notifyCustomerAccepted = (fcmToken, jobId, mechanicName) =>
+  sendNotification(
+    fcmToken,
+    '✅ Mechanic On The Way!',
+    `${mechanicName} has accepted your request and is heading to you.`,
+    { jobId, status: 'ACCEPTED' }
   );
-};
 
-// 2. Notify customer that mechanic accepted
-const notifyCustomerAccepted = async (customerFcmToken, bookingId, mechanicName) => {
-  return sendNotification(
-    customerFcmToken,
-    ' Mechanic Found!',
-    `${mechanicName} has accepted your request and is on the way!`,
-    { bookingId, type: 'JOB_ACCEPTED' }
+exports.notifyCustomerEnRoute = (fcmToken, jobId) =>
+  sendNotification(
+    fcmToken,
+    '🚗 Mechanic En Route',
+    'Your mechanic is on the way to your location.',
+    { jobId, status: 'EN_ROUTE' }
   );
-};
 
-// 3. Notify customer mechanic is en route
-const notifyCustomerEnRoute = async (customerFcmToken, bookingId) => {
-  return sendNotification(
-    customerFcmToken,
-    'Mechanic is Coming!',
-    'Your mechanic is heading to your location',
-    { bookingId, type: 'EN_ROUTE' }
+exports.notifyCustomerArrived = (fcmToken, jobId) =>
+  sendNotification(
+    fcmToken,
+    '📍 Mechanic Arrived',
+    'Your mechanic has arrived at your location.',
+    { jobId, status: 'ARRIVED' }
   );
-};
 
-// 4. Notify customer mechanic arrived
-const notifyCustomerArrived = async (customerFcmToken, bookingId) => {
-  return sendNotification(
-    customerFcmToken,
-    'Mechanic Arrived!',
-    'Your mechanic has arrived at your location',
-    { bookingId, type: 'ARRIVED' }
+exports.notifyCustomerRepairing = (fcmToken, jobId) =>
+  sendNotification(
+    fcmToken,
+    '🔧 Repair In Progress',
+    'Your mechanic has started working on your vehicle.',
+    { jobId, status: 'REPAIRING' }
   );
-};
 
-// 5. Notify customer repair started
-const notifyCustomerRepairing = async (customerFcmToken, bookingId) => {
-  return sendNotification(
-    customerFcmToken,
-    'Repair Started!',
-    'Your mechanic has started working on your vehicle',
-    { bookingId, type: 'REPAIRING' }
+exports.notifyCustomerCompleted = (fcmToken, jobId) =>
+  sendNotification(
+    fcmToken,
+    '🎉 Job Completed',
+    'Your vehicle has been repaired. Thank you for using resQcar!',
+    { jobId, status: 'COMPLETED' }
   );
-};
-
-// 6. Notify customer job completed
-const notifyCustomerCompleted = async (customerFcmToken, bookingId) => {
-  return sendNotification(
-    customerFcmToken,
-    'Repair Complete!',
-    'Your vehicle repair has been completed successfully!',
-    { bookingId, type: 'COMPLETED' }
-  );
-};
-
-module.exports = {
-  notifyMechanicNewJob,
-  notifyCustomerAccepted,
-  notifyCustomerEnRoute,
-  notifyCustomerArrived,
-  notifyCustomerRepairing,
-  notifyCustomerCompleted,
-};
