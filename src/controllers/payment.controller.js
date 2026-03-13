@@ -163,60 +163,96 @@ exports.getServiceHistoryMechanic = async (req, res) => {
   }
 };
 
-// POST /api/payments/ratings
+// POST /api/payments/ratings  OR  POST /api/ratings
 exports.submitRating = async (req, res) => {
   try {
-    const { serviceId, rating, comment } = req.body;
+    const { mechanicId, bookingId, serviceId, rating, comment } = req.body;
+    const customerId = req.user.uid;
 
-    if (!serviceId || !rating) {
+    // Accept either mechanicId (new) or serviceId (legacy)
+    const resolvedMechanicId = mechanicId || serviceId;
+
+    if (!resolvedMechanicId || !rating) {
       return res.status(400).json({
         success: false,
-        message: 'Service ID and rating (1-5) are required',
+        message: 'mechanicId and rating (1-5) are required',
       });
     }
+    if (rating < 1 || rating > 5) {
+      return res.status(400).json({ success: false, message: 'Rating must be between 1 and 5' });
+    }
 
-    console.log(`New Rating for ${serviceId}: ${rating} stars - "${comment}"`);
+    // Save to Firestore ratings collection
+    const { db } = require('../config/firebase');
+    const admin = require('firebase-admin');
+
+    const ratingRef = db.collection('ratings').doc();
+    const ratingData = {
+      id: ratingRef.id,
+      mechanicId: resolvedMechanicId,
+      customerId,
+      bookingId: bookingId || null,
+      rating: Number(rating),
+      comment: comment || '',
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    await ratingRef.set(ratingData);
+
+    // Update mechanic's average rating
+    const mechanicRef = db.collection('mechanics').doc(resolvedMechanicId);
+    await db.runTransaction(async (tx) => {
+      const mechDoc = await tx.get(mechanicRef);
+      if (mechDoc.exists) {
+        const data = mechDoc.data();
+        const count = (data.ratingCount || 0) + 1;
+        const avg = ((data.ratingAvg || 0) * (count - 1) + Number(rating)) / count;
+        tx.update(mechanicRef, { ratingCount: count, ratingAvg: Math.round(avg * 10) / 10 });
+      }
+    });
 
     return res.status(201).json({
       success: true,
-      data: {
-        serviceId,
-        rating,
-        comment,
-        submittedAt: new Date().toISOString(),
-      },
-      message: 'Rating and review submitted successfully!',
+      data: { id: ratingRef.id, ...ratingData },
+      message: 'Rating submitted successfully',
     });
   } catch (error) {
-    console.error('Stripe Error:', error);
+    console.error('submitRating error:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 };
 
-// GET /api/payments/mechanics/:id/ratings
+// GET /api/payments/mechanics/:id/ratings  OR  GET /api/ratings/mechanic/:id
 exports.getMechanicRatings = async (req, res) => {
   try {
-    const { id } = req.params;
+    const mechanicId = req.params.id || req.params.mechanicId;
 
-    if (!id) {
+    if (!mechanicId) {
       return res.status(400).json({ success: false, message: 'Mechanic ID is required' });
     }
 
-    const mockRatings = [
-      { customerName: 'Amara', rating: 5, comment: 'Excellent work!', date: '2024-03-01' },
-      { customerName: 'Kasun', rating: 4, comment: 'Very professional service.', date: '2024-02-28' },
-    ];
+    const { db } = require('../config/firebase');
+    const snapshot = await db.collection('ratings')
+      .where('mechanicId', '==', mechanicId)
+      .orderBy('createdAt', 'desc')
+      .get();
+
+    const reviews = [];
+    snapshot.forEach(doc => reviews.push({ id: doc.id, ...doc.data() }));
+
+    const avg = reviews.length
+      ? Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10
+      : 0;
 
     return res.status(200).json({
       success: true,
-      mechanicId: id,
-      averageRating: 4.5,
-      totalReviews: mockRatings.length,
-      reviews: mockRatings,
+      mechanicId,
+      averageRating: avg,
+      totalReviews: reviews.length,
+      reviews,
       message: 'Mechanic ratings retrieved successfully',
     });
   } catch (error) {
-    console.error('Stripe Error:', error);
+    console.error('getMechanicRatings error:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 };
