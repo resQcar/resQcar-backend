@@ -1,93 +1,81 @@
 // src/services/tow-trucks.service.js
 // =====================================================
-// Service Layer - All Firebase Database Operations
+// Service Layer - All Firebase operations for Tow Trucks
 // =====================================================
-// Think of this as the "warehouse worker" - it handles
-// all reading and writing to the database.
-// The controller asks this file to do the database work.
 
 const { db, admin } = require('../config/firebase');
 
 // ─────────────────────────────────────────────────────────
-// HELPER: Calculate distance between two GPS coordinates
-// Uses the "Haversine formula" - a math formula for distances on a sphere (Earth)
-// Returns distance in kilometers
+// Helper: Haversine formula to calculate distance between
+// two GPS coordinates in kilometers
 // ─────────────────────────────────────────────────────────
 function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Earth's radius in km
+  const R = 6371; // Earth radius in km
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
-
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
       Math.cos((lat2 * Math.PI) / 180) *
       Math.sin(dLon / 2) *
       Math.sin(dLon / 2);
-
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c; // Distance in kilometers
+  return R * c;
 }
 
 // ─────────────────────────────────────────────────────────
-// 1. CREATE a new tow truck request in the database
+// Create a new tow truck request in Firestore
 // ─────────────────────────────────────────────────────────
 exports.createTowRequest = async (requestData) => {
-  // Create a new empty document with auto-generated ID
   const requestRef = db.collection('towRequests').doc();
 
   const newRequest = {
     id: requestRef.id,
     customerId: requestData.customerId,
-    customerName: requestData.customerName || 'Unknown',
     customerPhone: requestData.customerPhone || null,
     pickupLocation: requestData.pickupLocation,
     dropoffLocation: requestData.dropoffLocation,
-    vehicleDetails: requestData.vehicleDetails || {},
+    vehicleDetails: requestData.vehicleDetails || null,
     towTruckType: requestData.towTruckType,
-    status: 'pending', // Always starts as pending
-    assignedTowTruckId: null, // No truck assigned yet
-    estimatedPrice: null, // Will be calculated later
-    requestedAt: admin.firestore.FieldValue.serverTimestamp(), // Current timestamp
+    status: 'pending', // pending | accepted | in-progress | completed | cancelled
+    assignedTowTruckId: null,
+    requestedAt: admin.firestore.FieldValue.serverTimestamp(),
     acceptedAt: null,
     completedAt: null,
   };
 
-  // Save to Firebase
   await requestRef.set(newRequest);
 
-  // Return the data with a readable date (serverTimestamp isn't readable directly)
+  // Return with a readable timestamp since serverTimestamp() is write-only
   return { ...newRequest, requestedAt: new Date().toISOString() };
 };
 
 // ─────────────────────────────────────────────────────────
-// 2. GET available tow trucks (with optional type filter)
+// Get all available tow trucks filtered by location & type
 // ─────────────────────────────────────────────────────────
 exports.getAvailableTowTrucks = async ({ latitude, longitude, type, radius }) => {
-  // Start building our database query
+  // Start query: only available trucks
   let query = db.collection('towTrucks').where('isAvailable', '==', true);
 
-  // If a specific type was requested, filter by it
-  // e.g., type = "flatbed" → only show flatbed trucks
+  // Add type filter if provided (flatbed / hook-chain / wheel-lift)
   if (type) {
     query = query.where('type', '==', type);
   }
 
-  // Execute the query and get results
   const snapshot = await query.get();
 
-  // If no trucks found, return empty array
   if (snapshot.empty) {
     return [];
   }
 
-  // Process each truck: calculate distance and filter by radius
+  // Filter by distance using Haversine formula (Firestore can't do geo-queries natively)
   const towTrucks = [];
-
   snapshot.forEach((doc) => {
     const truck = { id: doc.id, ...doc.data() };
 
-    // Calculate how far this truck is from the customer
+    // Make sure the truck has valid location data
+    if (truck.location?.latitude == null || truck.location?.longitude == null) return;
+
     const distance = calculateDistance(
       latitude,
       longitude,
@@ -95,74 +83,70 @@ exports.getAvailableTowTrucks = async ({ latitude, longitude, type, radius }) =>
       truck.location.longitude
     );
 
-    // Only include trucks within the requested radius (default: 10km)
+    // Only include trucks within the search radius
     if (distance <= radius) {
       towTrucks.push({
         ...truck,
-        distance: Math.round(distance * 10) / 10, // Round to 1 decimal (e.g., 2.3 km)
-        estimatedArrival: `${Math.ceil((distance / 40) * 60)} mins`, // Assuming 40km/h speed
+        distance: Math.round(distance * 10) / 10, // e.g. 4.7 km
+        estimatedArrivalMinutes: Math.ceil((distance / 40) * 60), // ~40km/h average
       });
     }
   });
 
-  // Sort trucks by distance: closest truck appears first
+  // Sort: closest truck first
   return towTrucks.sort((a, b) => a.distance - b.distance);
 };
 
 // ─────────────────────────────────────────────────────────
-// 3. GET a single tow truck by its ID
+// Tow truck driver accepts a pending request
+// ─────────────────────────────────────────────────────────
+exports.acceptTowRequest = async (requestId, towTruckId) => {
+  const requestRef = db.collection('towRequests').doc(requestId);
+
+  // Use a transaction to prevent race conditions (two drivers accepting same request)
+  return await db.runTransaction(async (transaction) => {
+    const requestSnap = await transaction.get(requestRef);
+
+    if (!requestSnap.exists) {
+      throw new Error('Tow request not found');
+    }
+
+    const requestData = requestSnap.data();
+
+    if (requestData.status !== 'pending') {
+      throw new Error('This request has already been accepted by another driver');
+    }
+
+    // Update the request status
+    transaction.update(requestRef, {
+      status: 'accepted',
+      assignedTowTruckId: towTruckId,
+      acceptedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // Mark the tow truck as unavailable
+    const truckRef = db.collection('towTrucks').doc(towTruckId);
+    transaction.update(truckRef, { isAvailable: false });
+
+    return {
+      id: requestId,
+      ...requestData,
+      status: 'accepted',
+      assignedTowTruckId: towTruckId,
+      acceptedAt: new Date().toISOString(),
+    };
+  });
+};
+
+// ─────────────────────────────────────────────────────────
+// Get a single tow truck's profile by ID
 // ─────────────────────────────────────────────────────────
 exports.getTowTruckById = async (towTruckId) => {
   const doc = await db.collection('towTrucks').doc(towTruckId).get();
 
-  // If truck doesn't exist, return null
   if (!doc.exists) {
     return null;
   }
 
   return { id: doc.id, ...doc.data() };
-};
-
-// ─────────────────────────────────────────────────────────
-// 4. ACCEPT a tow request (tow truck driver accepts job)
-// ─────────────────────────────────────────────────────────
-exports.acceptTowRequest = async (requestId, towTruckId) => {
-  // Get the request from database
-  const requestRef = db.collection('towRequests').doc(requestId);
-  const requestDoc = await requestRef.get();
-
-  // Check if request exists
-  if (!requestDoc.exists) {
-    throw new Error('Tow request not found');
-  }
-
-  // Check if request is still pending (not already accepted by someone else)
-  if (requestDoc.data().status !== 'pending') {
-    throw new Error('This request has already been accepted or is no longer available');
-  }
-
-  // Use a "batch" to update two things at the same time:
-  // 1. Update the request status to "accepted"
-  // 2. Mark the tow truck as unavailable
-  const batch = db.batch();
-
-  // Update the tow request
-  batch.update(requestRef, {
-    status: 'accepted',
-    assignedTowTruckId: towTruckId,
-    acceptedAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
-
-  // Mark the tow truck as busy (unavailable)
-  const towTruckRef = db.collection('towTrucks').doc(towTruckId);
-  batch.update(towTruckRef, {
-    isAvailable: false,
-  });
-
-  // Execute both updates together
-  await batch.commit();
-
-  // Return the updated request
-  const updatedDoc = await requestRef.get();
-  return { id: updatedDoc.id, ...updatedDoc.data() };
 };
