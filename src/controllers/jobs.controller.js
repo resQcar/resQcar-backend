@@ -167,10 +167,4 @@ async function uploadJobPhotos(req, res) {
   }
 }
 
-module.exports = {
-  acceptOffer,
-  updateJobStatus,
-  completeJob,
-  requestAdditionalWork,
-  uploadJobPhotos,
-};
+module.exports = { acceptOffer, updateJobStatus, completeJob, requestAdditionalWork, uploadJobPhotos };
