@@ -44,12 +44,27 @@ function initSocket(httpServer) {
       }
     });
 
+    // ── Customer subscribes to a specific mechanic's live location ──
+    // Call this from the Flutter map screen after a booking is accepted.
+    // Frontend: socket.emit('join_tracking', { mechanicId: 'uid456' })
+    socket.on('join_tracking', ({ mechanicId }) => {
+      if (mechanicId) {
+        socket.join(`tracking_${mechanicId}`);
+        console.log(`[Socket] Client ${socket.id} subscribed to live tracking for mechanic ${mechanicId}`);
+      }
+    });
+
     // ── Mechanic sends live location update ──
+    // FIX: Was io.emit() which broadcast to ALL connected clients (security/performance issue).
+    // Now correctly targets only clients that called join_tracking for this mechanic.
     // Frontend: socket.emit('location_update', { mechanicId, lat, lng })
     socket.on('location_update', ({ mechanicId, lat, lng }) => {
       if (mechanicId && lat != null && lng != null) {
-        // Broadcast to all clients tracking this mechanic
-        io.emit(`location:${mechanicId}`, { lat, lng, timestamp: Date.now() });
+        io.to(`tracking_${mechanicId}`).emit(`location:${mechanicId}`, {
+          lat,
+          lng,
+          timestamp: Date.now(),
+        });
       }
     });
 

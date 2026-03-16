@@ -28,9 +28,11 @@ const getFcmToken = async (userId) => {
 // Customer creates an emergency booking
 const createEmergencyBooking = async (req, res) => {
   try {
-    const { customerId, location, issueType, radiusKm } = req.body;
+    // FIX: Always take customerId from the verified Firebase token, never from the body.
+    // Accepting it from the body is a security hole — any user could impersonate another.
+    const customerId = req.user.uid;
+    const { location, issueType, radiusKm } = req.body;
 
-    if (!customerId) return res.status(400).json({ error: 'customerId is required' });
     if (!location?.lat || !location?.lng) return res.status(400).json({ error: 'location {lat,lng} required' });
     if (!issueType) return res.status(400).json({ error: 'issueType is required' });
 
@@ -89,9 +91,8 @@ const getJobById = async (req, res) => {
 const acceptJob = async (req, res) => {
   try {
     const { id } = req.params;
-    const { mechanicId } = req.body;
-
-    if (!mechanicId) return res.status(400).json({ error: 'mechanicId is required' });
+    // FIX: Always take mechanicId from the verified Firebase token, never from the body.
+    const mechanicId = req.user.uid;
 
     const jobRef = db.collection('bookings').doc(id);
     const jobDoc = await jobRef.get();
@@ -139,9 +140,8 @@ const acceptJob = async (req, res) => {
 const rejectJob = async (req, res) => {
   try {
     const { id } = req.params;
-    const { mechanicId } = req.body;
-
-    if (!mechanicId) return res.status(400).json({ error: 'mechanicId is required' });
+    // FIX: Always take mechanicId from the verified Firebase token, never from the body.
+    const mechanicId = req.user.uid;
 
     const jobRef = db.collection('bookings').doc(id);
     const jobDoc = await jobRef.get();
@@ -165,10 +165,12 @@ const rejectJob = async (req, res) => {
 const updateJobStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { mechanicId, status } = req.body;
+    const { status } = req.body;
+    // FIX: Always take mechanicId from the verified Firebase token, never from the body.
+    const mechanicId = req.user.uid;
     const validStatuses = ['EN_ROUTE', 'ARRIVED', 'REPAIRING'];
 
-    if (!mechanicId || !status) return res.status(400).json({ error: 'mechanicId and status are required' });
+    if (!status) return res.status(400).json({ error: 'status is required' });
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: `Status must be one of: ${validStatuses.join(', ')}` });
     }
