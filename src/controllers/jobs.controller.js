@@ -1,6 +1,7 @@
 // src/controllers/jobs.controller.js
 const { db } = require("../config/firebase");
 const jobsService = require('../services/jobs.service');
+const { getIO } = require('../websocket/socket');
 
 // Imanjith's function
 async function acceptOffer(req, res) {
@@ -46,6 +47,24 @@ async function acceptOffer(req, res) {
       });
       return job;
     });
+
+    // WebSocket — notify customer and mechanic in real time
+    const io = getIO();
+    if (io) {
+      io.to(`customer_${result.customerId}`).emit('job_assigned', {
+        jobId: result.jobId,
+        mechanicId: result.mechanicId,
+        status: 'ACCEPTED',
+        message: 'A mechanic has accepted your request'
+      });
+      io.to(`mechanic_${result.mechanicId}`).emit('job_assigned', {
+        jobId: result.jobId,
+        customerId: result.customerId,
+        status: 'ACCEPTED',
+        message: 'Job assigned to you successfully'
+      });
+    }
+
     return res.json({ success: true, job: result });
   } catch (error) {
     console.error(error);
@@ -72,6 +91,15 @@ async function updateJobStatus(req, res) {
       });
     }
     const updatedJob = await jobsService.updateJobStatus(jobId, status);
+
+    // WebSocket — notify both customer and mechanic about the status change
+    const io = getIO();
+    if (io && updatedJob) {
+      const payload = { jobId, status, updatedAt: new Date().toISOString() };
+      io.to(`customer_${updatedJob.customerId}`).emit('booking_status_changed', payload);
+      io.to(`mechanic_${updatedJob.mechanicId}`).emit('booking_status_changed', payload);
+    }
+
     res.status(200).json({
       success: true,
       message: `Job status updated to ${status}`,
@@ -99,6 +127,20 @@ async function completeJob(req, res) {
       });
     }
     const completedJob = await jobsService.completeJob(jobId, totalAmount, notes);
+
+    // WebSocket — notify both parties that job is complete
+    const io = getIO();
+    if (io && completedJob) {
+      const payload = {
+        jobId,
+        totalAmount,
+        status: 'completed',
+        completedAt: new Date().toISOString()
+      };
+      io.to(`customer_${completedJob.customerId}`).emit('job_completed', payload);
+      io.to(`mechanic_${completedJob.mechanicId}`).emit('job_completed', payload);
+    }
+
     res.status(200).json({
       success: true,
       message: 'Job completed successfully',
@@ -126,6 +168,21 @@ async function requestAdditionalWork(req, res) {
       });
     }
     const result = await jobsService.requestAdditionalWork(jobId, description, estimatedCost);
+
+    // WebSocket — notify customer that mechanic is requesting additional work
+    const io = getIO();
+    if (io) {
+      const jobSnap = await db.collection('jobs').doc(jobId).get();
+      if (jobSnap.exists) {
+        io.to(`customer_${jobSnap.data().customerId}`).emit('additional_work_requested', {
+          jobId,
+          description,
+          estimatedCost,
+          status: 'pending'
+        });
+      }
+    }
+
     res.status(201).json({
       success: true,
       message: 'Additional work requested successfully',
