@@ -50,6 +50,9 @@ app.use('/api/service-history', require('./routes/service-history.routes'));
 // Ratings routes (Devi)
 app.use('/api/ratings', require('./routes/ratings.routes'));
 
+// Car tips routes
+app.use('/api/car-tips', require('./routes/car-tips.routes'));
+
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Error:', err.message);
