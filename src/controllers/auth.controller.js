@@ -162,6 +162,85 @@ exports.login = async (req, res) => {
   }
 };
 
+// ---------- GOOGLE AUTH ----------
+// Flutter sends the Google idToken → we verify it with Firebase Admin,
+// create the Firestore user doc if it doesn't exist, then return our own
+// Firebase token so the rest of the app works exactly like email/password login.
+exports.googleAuth = async (req, res) => {
+  try {
+    const { idToken } = req.body;
+
+    if (!idToken) {
+      return res.status(400).json({ message: 'Google idToken is required.' });
+    }
+
+    // Verify the Google-issued Firebase ID token
+    const decoded = await auth.verifyIdToken(String(idToken));
+    const uid = decoded.uid;
+
+    // Get or create the Firebase Auth user record
+    let userRecord;
+    try {
+      userRecord = await auth.getUser(uid);
+    } catch {
+      return res.status(401).json({ message: 'Invalid Google token.' });
+    }
+
+    // Check if a Firestore doc already exists for this user
+    const userRef  = db.collection('users').doc(uid);
+    const userSnap = await userRef.get();
+
+    let isNewUser = false;
+
+    if (!userSnap.exists) {
+      // First time signing in with Google → create the Firestore doc
+      isNewUser = true;
+      await userRef.set({
+        uid,
+        email:       userRecord.email || null,
+        fullName:    userRecord.displayName || decoded.name || 'Google User',
+        photoURL:    userRecord.photoURL  || decoded.picture || null,
+        phoneNumber: userRecord.phoneNumber || null,
+        provider:    'google',
+        userType:    null,       // user will pick customer / mechanic next
+        createdAt:   admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    // Read back the doc to get stored userType / createdAt
+    const freshSnap = await userRef.get();
+    const firestoreData = freshSnap.data() || {};
+    const userType = userRecord.customClaims?.userType ?? firestoreData.userType ?? null;
+    const createdAt = firestoreData.createdAt
+      ? firestoreData.createdAt.toDate().toISOString()
+      : null;
+
+    return res.status(200).json({
+      message:   isNewUser ? 'Google account registered.' : 'Google login successful.',
+      token:     idToken,   // the verified Firebase ID token — valid for 1 hr
+      isNewUser,
+      user: {
+        uid,
+        email:       userRecord.email       || null,
+        fullName:    userRecord.displayName || firestoreData.fullName || 'Google User',
+        photoURL:    userRecord.photoURL    || firestoreData.photoURL || null,
+        phoneNumber: userRecord.phoneNumber || firestoreData.phoneNumber || null,
+        userType,
+        createdAt,
+      },
+    });
+  } catch (err) {
+    const msg = String(err?.message || err);
+    if (msg.includes('Firebase ID token has expired')) {
+      return res.status(401).json({ message: 'Google token expired. Please sign in again.' });
+    }
+    if (msg.includes('invalid-argument') || msg.includes('Decoding Firebase ID token failed')) {
+      return res.status(401).json({ message: 'Invalid Google token.' });
+    }
+    return res.status(500).json({ message: 'Google authentication failed.', error: msg });
+  }
+};
+
 // ---------- SELECT USER TYPE ----------
 exports.selectUserType = async (req, res) => {
   try {
