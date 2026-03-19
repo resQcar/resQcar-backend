@@ -77,6 +77,7 @@ exports.register = async (req, res) => {
       uid: userRecord.uid,
       email: userRecord.email,
       fullName: String(displayName).trim(),
+      phoneNumber: userRecord.phoneNumber || (phone ? String(phone).trim() : null) || null,
       userType: null,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -130,15 +131,23 @@ exports.login = async (req, res) => {
     const userRecord = await auth.getUser(uid);
     const userType = decoded.userType ?? userRecord.customClaims?.userType ?? null;
 
+    // Fetch Firestore doc to get createdAt and any extra fields
+    const userDoc = await db.collection("users").doc(uid).get();
+    const firestoreData = userDoc.exists ? userDoc.data() : {};
+    const createdAt = firestoreData.createdAt
+      ? firestoreData.createdAt.toDate().toISOString()
+      : null;
+
     return res.status(200).json({
       message: "Login successful.",
       token: tokenToVerify,
       user: {
         uid: userRecord.uid,
         email: userRecord.email,
-        fullName: userRecord.displayName || null,
-        phoneNumber: userRecord.phoneNumber || null,
+        fullName: userRecord.displayName || firestoreData.fullName || null,
+        phoneNumber: userRecord.phoneNumber || firestoreData.phoneNumber || null,
         userType,
+        createdAt,
       },
     });
   } catch (err) {
