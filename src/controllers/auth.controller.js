@@ -58,37 +58,54 @@ exports.register = async (req, res) => {
     if (!email || !isValidEmail(email)) {
       return res.status(400).json({ message: "Valid email is required." });
     }
-    if (!password || String(password).length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters." });
-    }
     if (!displayName || String(displayName).trim().length < 2) {
       return res.status(400).json({ message: "Full name is required." });
     }
 
-    const userRecord = await auth.createUser({
-      email: String(email).trim().toLowerCase(),
-      password: String(password),
-      displayName: String(displayName).trim(),
-      phoneNumber: phone ? String(phone).trim() : undefined,
-    });
+    let userRecord;
 
-    // Save user to Firestore
+    // ── Try to find the user Firebase already created on the client ──
+    // (Flutter calls Firebase.createUserWithEmailAndPassword first,
+    //  then calls this endpoint just to save the Firestore doc)
+    try {
+      userRecord = await auth.getUserByEmail(String(email).trim().toLowerCase());
+    } catch (notFound) {
+      // User doesn't exist in Firebase yet — create them (legacy flow)
+      if (!password || String(password).length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters." });
+      }
+      userRecord = await auth.createUser({
+        email:       String(email).trim().toLowerCase(),
+        password:    String(password),
+        displayName: String(displayName).trim(),
+        phoneNumber: phone ? String(phone).trim() : undefined,
+      });
+    }
+
+    // Update display name if not already set
+    if (!userRecord.displayName) {
+      await auth.updateUser(userRecord.uid, {
+        displayName: String(displayName).trim(),
+      });
+    }
+
+    // Save / update Firestore doc
     await db.collection("users").doc(userRecord.uid).set({
-      uid: userRecord.uid,
-      email: userRecord.email,
-      fullName: String(displayName).trim(),
-      phoneNumber: userRecord.phoneNumber || (phone ? String(phone).trim() : null) || null,
-      userType: null,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+      uid:         userRecord.uid,
+      email:       userRecord.email,
+      fullName:    String(displayName).trim(),
+      phoneNumber: phone ? String(phone).trim() : (userRecord.phoneNumber || null),
+      userType:    null,
+      createdAt:   admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true }); // merge:true so we don't overwrite existing fields
 
     return res.status(201).json({
       message: "User registered successfully.",
       user: {
-        uid: userRecord.uid,
-        email: userRecord.email,
-        fullName: userRecord.displayName || null,
-        phoneNumber: userRecord.phoneNumber || null,
+        uid:         userRecord.uid,
+        email:       userRecord.email,
+        fullName:    String(displayName).trim(),
+        phoneNumber: phone || userRecord.phoneNumber || null,
       },
     });
   } catch (err) {
@@ -97,7 +114,7 @@ exports.register = async (req, res) => {
       return res.status(409).json({ message: "Email already registered." });
     }
     if (code === "auth/invalid-phone-number") {
-      return res.status(400).json({ message: "Phone must be in E.164 format (ex: +94771234567)." });
+      return res.status(400).json({ message: "Phone must be in E.164 format (e.g. +94771234567)." });
     }
     if (code === "auth/invalid-password") {
       return res.status(400).json({ message: "Password is invalid (min 6 chars)." });
@@ -163,61 +180,42 @@ exports.login = async (req, res) => {
 };
 
 // ---------- GOOGLE AUTH ----------
-// Flutter sends the Google idToken → we verify it with Firebase Admin,
-// create the Firestore user doc if it doesn't exist, then return our own
-// Firebase token so the rest of the app works exactly like email/password login.
 exports.googleAuth = async (req, res) => {
   try {
     const { idToken } = req.body;
+    if (!idToken) return res.status(400).json({ message: 'Google idToken is required.' });
 
-    if (!idToken) {
-      return res.status(400).json({ message: 'Google idToken is required.' });
-    }
+    const decoded    = await auth.verifyIdToken(String(idToken));
+    const uid        = decoded.uid;
+    const userRecord = await auth.getUser(uid);
 
-    // Verify the Google-issued Firebase ID token
-    const decoded = await auth.verifyIdToken(String(idToken));
-    const uid = decoded.uid;
-
-    // Get or create the Firebase Auth user record
-    let userRecord;
-    try {
-      userRecord = await auth.getUser(uid);
-    } catch {
-      return res.status(401).json({ message: 'Invalid Google token.' });
-    }
-
-    // Check if a Firestore doc already exists for this user
     const userRef  = db.collection('users').doc(uid);
     const userSnap = await userRef.get();
-
-    let isNewUser = false;
+    let isNewUser  = false;
 
     if (!userSnap.exists) {
-      // First time signing in with Google → create the Firestore doc
       isNewUser = true;
       await userRef.set({
         uid,
-        email:       userRecord.email || null,
-        fullName:    userRecord.displayName || decoded.name || 'Google User',
-        photoURL:    userRecord.photoURL  || decoded.picture || null,
-        phoneNumber: userRecord.phoneNumber || null,
+        email:       userRecord.email       || null,
+        fullName:    userRecord.displayName || 'Google User',
+        photoURL:    userRecord.photoURL    || null,
+        phoneNumber: null,
         provider:    'google',
-        userType:    null,       // user will pick customer / mechanic next
+        userType:    null,
         createdAt:   admin.firestore.FieldValue.serverTimestamp(),
       });
     }
 
-    // Read back the doc to get stored userType / createdAt
-    const freshSnap = await userRef.get();
+    const freshSnap     = await userRef.get();
     const firestoreData = freshSnap.data() || {};
-    const userType = userRecord.customClaims?.userType ?? firestoreData.userType ?? null;
+    const userType  = userRecord.customClaims?.userType ?? firestoreData.userType ?? null;
     const createdAt = firestoreData.createdAt
-      ? firestoreData.createdAt.toDate().toISOString()
-      : null;
+      ? firestoreData.createdAt.toDate().toISOString() : null;
 
     return res.status(200).json({
-      message:   isNewUser ? 'Google account registered.' : 'Google login successful.',
-      token:     idToken,   // the verified Firebase ID token — valid for 1 hr
+      message:  isNewUser ? 'Google account registered.' : 'Google login successful.',
+      token:    idToken,
       isNewUser,
       user: {
         uid,
@@ -233,9 +231,6 @@ exports.googleAuth = async (req, res) => {
     const msg = String(err?.message || err);
     if (msg.includes('Firebase ID token has expired')) {
       return res.status(401).json({ message: 'Google token expired. Please sign in again.' });
-    }
-    if (msg.includes('invalid-argument') || msg.includes('Decoding Firebase ID token failed')) {
-      return res.status(401).json({ message: 'Invalid Google token.' });
     }
     return res.status(500).json({ message: 'Google authentication failed.', error: msg });
   }
@@ -285,5 +280,120 @@ exports.selectUserType = async (req, res) => {
       message: "Failed to update user type.",
       error: String(err?.message || err),
     });
+  }
+};
+// ---------- SEND OTP ----------
+// Sends a 6-digit OTP to the given phone number via Firebase Auth
+// and stores it temporarily in Firestore with a 10-minute expiry.
+exports.sendOtp = async (req, res) => {
+  try {
+    let { phone } = req.body;
+    if (!phone) return res.status(400).json({ message: 'Phone number is required.' });
+
+    // Must be E.164 format e.g. +94771234567
+    phone = String(phone).trim();
+    if (!phone.startsWith('+')) {
+      return res.status(400).json({ message: 'Phone must include country code (e.g. +94771234567).' });
+    }
+
+    // Generate 6-digit OTP
+    const otp       = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    // Save to Firestore
+    await db.collection('otp_verifications').doc(phone).set({
+      otp,
+      expiresAt,
+      verified:  false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // ── Send SMS via Twilio ──────────────────────────────
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken  = process.env.TWILIO_AUTH_TOKEN;
+    const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+
+    if (!accountSid || !authToken || !fromNumber) {
+      // Twilio not configured — fall back to terminal log (dev only)
+      console.log(`[OTP] TWILIO not configured. Code for ${phone}: ${otp}`);
+      return res.status(200).json({
+        message: `OTP sent to ${phone}. Valid for 10 minutes.`,
+        ...(process.env.NODE_ENV !== 'production' && { devOtp: otp }),
+      });
+    }
+
+    const twilio = require('twilio')(accountSid, authToken);
+
+    await twilio.messages.create({
+      body: `Your resQcar verification code is: ${otp}\n\nDo not share this code with anyone. Valid for 10 minutes.`,
+      from: fromNumber,
+      to:   phone,
+    });
+
+    console.log(`[OTP] SMS sent to ${phone}`);
+
+    return res.status(200).json({
+      message: `OTP sent to ${phone}. Valid for 10 minutes.`,
+    });
+
+  } catch (err) {
+    console.error('sendOtp error:', err.message);
+
+    // Give a helpful error if it's a Twilio issue
+    if (err.code === 21608) {
+      return res.status(400).json({ message: 'This number is not verified in your Twilio trial account. Verify it at twilio.com/console first.' });
+    }
+    if (err.code === 21211) {
+      return res.status(400).json({ message: 'Invalid phone number format.' });
+    }
+    if (err.code === 20003) {
+      return res.status(500).json({ message: 'Twilio credentials are incorrect. Check your .env file.' });
+    }
+
+    return res.status(500).json({ message: 'Failed to send OTP.', error: String(err.message) });
+  }
+};
+
+// ---------- VERIFY OTP ----------
+// Checks the OTP the user typed against what's stored in Firestore.
+exports.verifyOtp = async (req, res) => {
+  try {
+    let { phone, otp } = req.body;
+    if (!phone || !otp) return res.status(400).json({ message: 'Phone and OTP are required.' });
+
+    phone = String(phone).trim();
+    otp   = String(otp).trim();
+
+    const docRef  = db.collection('otp_verifications').doc(phone);
+    const docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      return res.status(404).json({ message: 'No OTP found for this number. Please request a new one.' });
+    }
+
+    const data = docSnap.data();
+
+    // Check expiry
+    if (Date.now() > data.expiresAt) {
+      await docRef.delete();
+      return res.status(410).json({ message: 'OTP has expired. Please request a new one.' });
+    }
+
+    // Check OTP match
+    if (data.otp !== otp) {
+      return res.status(400).json({ message: 'Incorrect OTP. Please try again.' });
+    }
+
+    // Mark as verified and clean up
+    await docRef.update({ verified: true });
+
+    return res.status(200).json({
+      message: 'Phone number verified successfully.',
+      verified: true,
+      phone,
+    });
+  } catch (err) {
+    console.error('verifyOtp error:', err.message);
+    return res.status(500).json({ message: 'OTP verification failed.', error: String(err.message) });
   }
 };

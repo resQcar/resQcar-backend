@@ -109,6 +109,23 @@ const getMechanicSpecializations = async (req, res) => {
   } catch (error) { return res.status(500).json({ error: error.message }); }
 };
 
+// GET /api/mechanics/profile — returns the logged-in mechanic's own profile
+const getMyProfile = async (req, res) => {
+  try {
+    const mechanicId = req.user.uid;
+    const doc = await db.collection('mechanics').doc(mechanicId).get();
+    // Profile may not exist yet (first-time mechanic) — return empty defaults
+    const m = doc.exists ? { id: doc.id, ...doc.data() } : { id: mechanicId };
+    return res.status(200).json({ success: true, profile: {
+      id: m.id, name: m.name||'', phone: m.phone||'',
+      isAvailable: !!m.isAvailable, isOnline: !!m.isOnline,
+      location: m.location||null, specializations: m.specializations||[],
+      ratingAvg: m.ratingAvg||0, ratingCount: m.ratingCount||0,
+      garageName: m.garageName||'', profileImageUrl: m.profileImageUrl||'',
+    }});
+  } catch (error) { return res.status(500).json({ error: error.message }); }
+};
+
 // PUT /api/mechanics/availability — mechanicId from token (SECURITY FIX)
 const updateMechanicAvailability = async (req, res) => {
   try {
@@ -151,6 +168,6 @@ const updateMechanicProfile = async (req, res) => {
 
 module.exports = {
   getJobRequests, getActiveJobs, getDashboardStats, getAvailableMechanics,
-  getNearbyMechanics, getMechanicProfile, getMechanicSpecializations,
+  getNearbyMechanics, getMechanicProfile, getMyProfile, getMechanicSpecializations,
   updateMechanicAvailability, updateMechanicProfile,
 };

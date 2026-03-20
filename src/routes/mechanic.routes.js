@@ -9,6 +9,7 @@ const {
   getAvailableMechanics,
   getNearbyMechanics,
   getMechanicProfile,
+  getMyProfile,
   getMechanicSpecializations,
   updateMechanicAvailability,
   updateMechanicProfile,
@@ -23,6 +24,7 @@ router.get('/job-requests', requireAuth, getJobRequests);
 router.get('/active-jobs', requireAuth, getActiveJobs);
 router.get('/dashboard', requireAuth, getDashboardStats);
 router.put('/availability', requireAuth, updateMechanicAvailability);
+router.get('/profile', requireAuth, getMyProfile);           // ← own profile
 router.put('/profile', requireAuth, updateMechanicProfile);
 
 // Must be after named routes
