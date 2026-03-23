@@ -1,25 +1,34 @@
 // src/config/firebase.js
 const admin = require("firebase-admin");
-const path = require("path");
 
 function initFirebase() {
   if (admin.apps.length) return admin.apps[0];
   try {
-    const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT;
-    console.log("Looking for key at:", serviceAccountPath);
-    if (!serviceAccountPath) {
-      throw new Error("Missing FIREBASE_SERVICE_ACCOUNT in .env");
+    let serviceAccount;
+
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+      // Production: read from environment variable (Railway)
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+      console.log("Firebase: using env variable credentials");
+    } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      // Local dev: read from file path
+      const path = require("path");
+      const resolvedPath = path.resolve(process.env.FIREBASE_SERVICE_ACCOUNT);
+      serviceAccount = require(resolvedPath);
+      console.log("Firebase: using file credentials from", resolvedPath);
+    } else {
+      throw new Error("No Firebase credentials found. Set FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT");
     }
-    const resolvedPath = path.resolve(serviceAccountPath);
-    console.log("Resolved path:", resolvedPath);
-    const serviceAccount = require(resolvedPath);
+
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
-      databaseURL: process.env.FIREBASE_DATABASE_URL
+      databaseURL: process.env.FIREBASE_DATABASE_URL,
     });
-    console.log("Firebase connected");
+
+    console.log("Firebase connected successfully");
   } catch (error) {
-    console.error("Firebase error:", error.message);
+    console.error("Firebase init error:", error.message);
+    process.exit(1); // crash fast so Railway shows a clear error
   }
 }
 
