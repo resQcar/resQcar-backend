@@ -1,6 +1,11 @@
 // src/controllers/auth.controller.js
 const { admin, auth, db } = require("../config/firebase");
 const https = require("https");
+const crypto = require("crypto");
+
+function hashOtp(otp) {
+  return crypto.createHash("sha256").update(otp).digest("hex");
+}
 
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
@@ -300,9 +305,9 @@ exports.sendOtp = async (req, res) => {
     const otp       = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-    // Save to Firestore
+    // Save hashed OTP to Firestore — never store plaintext
     await db.collection('otp_verifications').doc(phone).set({
-      otp,
+      otpHash:   hashOtp(otp),
       expiresAt,
       verified:  false,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -379,8 +384,8 @@ exports.verifyOtp = async (req, res) => {
       return res.status(410).json({ message: 'OTP has expired. Please request a new one.' });
     }
 
-    // Check OTP match
-    if (data.otp !== otp) {
+    // Check OTP match — compare hashes
+    if (data.otpHash !== hashOtp(otp)) {
       return res.status(400).json({ message: 'Incorrect OTP. Please try again.' });
     }
 
