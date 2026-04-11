@@ -52,35 +52,6 @@ resQcar-backend/
 ├── package.json
 └── README.md
 ```
-
----
-
-## Environment Variables
-
-Create a `.env` file in the project root with the following variables:
-
-```env
-PORT=5000
-
-# Firebase - local dev (path to service account JSON)
-FIREBASE_SERVICE_ACCOUNT=./serviceAccountKey.json
-
-# Firebase - production (full JSON as single-line string)
-# FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
-
-FIREBASE_DATABASE_URL=https://<your-project-id>-default-rtdb.firebaseio.com
-FIREBASE_WEB_API_KEY=your_firebase_web_api_key
-
-# Stripe
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_PUBLISHABLE_KEY=pk_test_...
-
-# CORS (comma-separated, defaults to localhost:3000 and localhost:8081)
-# CORS_ORIGINS=https://your-frontend.com
-```
-
-> **Never commit `.env` or `serviceAccountKey.json` to version control.**
-
 ---
 
 ## Installation & Running
