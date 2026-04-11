@@ -25,6 +25,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run tests
+        run: npm test
+
   # ─── CD: Build & push Docker image (main branch only) ────────────────────
   cd:
     name: Build & Deploy
