@@ -1,10 +1,13 @@
 // src/controllers/payment.controller.js
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const { db } = require('../config/firebase');
+const admin = require('firebase-admin');
 
 // POST /api/payments/create-intent
 exports.createPaymentIntent = async (req, res) => {
   try {
     const { amount, currency = 'lkr' } = req.body;
+    const uid = req.user.uid;
 
     if (!amount) {
       return res.status(400).json({ success: false, error: 'Amount is required' });
@@ -13,10 +16,21 @@ exports.createPaymentIntent = async (req, res) => {
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
       currency,
+      metadata: { uid },
       automatic_payment_methods: {
         enabled: true,
         allow_redirects: 'never',
       },
+    });
+
+    // Save to Firestore so history can be filtered by user
+    await db.collection('payments').doc(paymentIntent.id).set({
+      paymentIntentId: paymentIntent.id,
+      uid,
+      amount,
+      currency,
+      status: paymentIntent.status,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     return res.status(200).json({
@@ -89,20 +103,29 @@ exports.getPaymentStatus = async (req, res) => {
 // GET /api/payments/history
 exports.getPaymentHistory = async (req, res) => {
   try {
-    const payments = await stripe.paymentIntents.list({
-      limit: 10,
+    const uid = req.user.uid;
+
+    const snapshot = await db.collection('payments')
+      .where('uid', '==', uid)
+      .orderBy('createdAt', 'desc')
+      .limit(10)
+      .get();
+
+    const history = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: data.paymentIntentId,
+        amount: data.amount,
+        currency: data.currency,
+        status: data.status,
+        date: data.createdAt ? data.createdAt.toDate().toLocaleString() : null,
+      };
     });
 
     return res.status(200).json({
       success: true,
-      count: payments.data.length,
-      history: payments.data.map((payment) => ({
-        id: payment.id,
-        amount: payment.amount,
-        currency: payment.currency,
-        status: payment.status,
-        date: new Date(payment.created * 1000).toLocaleString(),
-      })),
+      count: history.length,
+      history,
       message: 'Payment history retrieved successfully',
     });
   } catch (error) {
@@ -114,21 +137,30 @@ exports.getPaymentHistory = async (req, res) => {
 // GET /api/payments/customer-history
 exports.getServiceHistoryCustomer = async (req, res) => {
   try {
-    const history = await stripe.paymentIntents.list({
-      limit: 10,
+    const uid = req.user.uid;
+
+    const snapshot = await db.collection('payments')
+      .where('uid', '==', uid)
+      .orderBy('createdAt', 'desc')
+      .limit(10)
+      .get();
+
+    const services = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: data.paymentIntentId,
+        amount: data.amount,
+        currency: data.currency,
+        date: data.createdAt ? data.createdAt.toDate().toLocaleDateString() : null,
+        status: data.status,
+        description: data.description || 'Vehicle Service',
+      };
     });
 
     return res.status(200).json({
       success: true,
       role: 'customer',
-      services: history.data.map((item) => ({
-        id: item.id,
-        amount: item.amount,
-        currency: item.currency,
-        date: new Date(item.created * 1000).toLocaleDateString(),
-        status: item.status,
-        description: item.description || 'Vehicle Service',
-      })),
+      services,
       message: 'Customer service history retrieved successfully',
     });
   } catch (error) {
@@ -140,21 +172,30 @@ exports.getServiceHistoryCustomer = async (req, res) => {
 // GET /api/payments/mechanic-history
 exports.getServiceHistoryMechanic = async (req, res) => {
   try {
-    const history = await stripe.paymentIntents.list({
-      limit: 10,
+    const uid = req.user.uid;
+
+    const snapshot = await db.collection('payments')
+      .where('mechanicId', '==', uid)
+      .orderBy('createdAt', 'desc')
+      .limit(10)
+      .get();
+
+    const jobs = snapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        jobId: data.paymentIntentId,
+        earnings: data.amount,
+        currency: data.currency,
+        completedAt: data.createdAt ? data.createdAt.toDate().toLocaleString() : null,
+        status: data.status,
+        customerNote: data.description || 'General Repair',
+      };
     });
 
     return res.status(200).json({
       success: true,
       role: 'mechanic',
-      jobs: history.data.map((item) => ({
-        jobId: item.id,
-        earnings: item.amount,
-        currency: item.currency,
-        completedAt: new Date(item.created * 1000).toLocaleString(),
-        status: item.status,
-        customerNote: item.description || 'General Repair',
-      })),
+      jobs,
       message: 'Mechanic service history retrieved successfully',
     });
   } catch (error) {
