@@ -1,101 +1,145 @@
 # resQcar Backend
 
-## Overview
-The **resQcar Backend** is the mobile application for the resQcar platform. It provides APIs and real-time communication services that support the mobile application used to connect drivers with nearby mechanics during vehicle emergencies.
+*A location-based emergency mechanic and roadside assistance platform.*
 
-The backend handles user authentication, service requests, location-based mechanic discovery, notifications, and real-time communication between users and mechanics.
-
-This backend is built using **Node.js and Express.js**, with **Firebase services** for authentication and data management.
+The **resQcar Backend** provides the REST API and real-time communication services that power the resQcar mobile application — connecting drivers with nearby mechanics during vehicle emergencies.
 
 ---
 
 ## Features
 
-- RESTful API for client applications
-- Firebase Authentication integration
+- Firebase Authentication (token verification via middleware)
+- Firestore & Firebase Realtime Database integration
 - Mechanic discovery and service request management
-- Real-time communication using WebSockets
-- Modular architecture using controllers, routes, services, and middleware
-- Environment-based configuration support
+- Real-time tracking and communication via Socket.IO
+- Stripe payment processing
+- File upload support via Multer
+- Modular architecture (controllers, routes, services, middleware)
+- Docker support
 
 ---
 
 ## Tech Stack
 
-- Node.js  
-- Express.js  
-- Firebase (Authentication / Firestore)  
-- WebSockets  
-- JavaScript  
-- REST API Architecture
-- AWS EC2 
+| Layer | Technology |
+|-------|-----------|
+| Runtime | Node.js |
+| Framework | Express 5.x |
+| Auth & DB | Firebase Admin SDK (Firestore + Realtime DB) |
+| Real-time | Socket.IO |
+| Payments | Stripe |
+| Containerisation | Docker / Docker Compose |
 
 ---
 
 ## Project Structure
 
 ```
-resQcar-backend
-│
-├── src
-│   ├── config          # Configuration files
-│   ├── controllers     # Handles request/response logic
-│   ├── middleware      # Custom middleware functions
-│   ├── routes          # API route definitions
-│   ├── services        # Business logic and service layer
-│   └── websocket       # WebSocket implementation for real-time features
-│
-├── app.js              # Express application setup
-├── server.js           # Server entry point
-├── .env                # Environment variables
-├── serviceAccountKey.json  # Firebase admin credentials
+resQcar-backend/
+├── src/
+│   ├── config/          # Firebase & DB initialisation
+│   ├── controllers/     # Request/response handlers
+│   ├── helpers/         # Utility functions (e.g. ETA)
+│   ├── middleware/      # Auth, roles, file upload
+│   ├── routes/          # API route definitions
+│   ├── scripts/         # One-off scripts (e.g. seed data)
+│   ├── services/        # Business logic layer
+│   ├── websocket/       # Socket.IO setup
+│   ├── app.js           # Express app setup
+│   └── server.js        # HTTP server entry point
+├── Dockerfile
+├── docker-compose.yml
 ├── package.json
 └── README.md
 ```
 
 ---
 
-## Installation
+## Environment Variables
 
-Clone the repository:
+Create a `.env` file in the project root with the following variables:
 
-```bash
-git clone https://github.com/ImanjithWaniganayaka/resQcar-backend.git
+```env
+PORT=5000
+
+# Firebase - local dev (path to service account JSON)
+FIREBASE_SERVICE_ACCOUNT=./serviceAccountKey.json
+
+# Firebase - production (full JSON as single-line string)
+# FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
+
+FIREBASE_DATABASE_URL=https://<your-project-id>-default-rtdb.firebaseio.com
+FIREBASE_WEB_API_KEY=your_firebase_web_api_key
+
+# Stripe
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+
+# CORS (comma-separated, defaults to localhost:3000 and localhost:8081)
+# CORS_ORIGINS=https://your-frontend.com
 ```
 
-Navigate into the project directory:
+> **Never commit `.env` or `serviceAccountKey.json` to version control.**
+
+---
+
+## Installation & Running
 
 ```bash
+# Clone the repo
+git clone https://github.com/resQcar/resQcar-backend.git
 cd resQcar-backend
+
+# Install dependencies
+npm install
+
+# Development (with auto-reload)
+npm run dev
+
+# Production
+npm start
 ```
 
-Install dependencies:
+Server runs on `http://localhost:5000` by default.
+
+---
+
+## Docker
 
 ```bash
-npm install
+# Build and start
+docker compose up --build
+
+# Stop
+docker compose down
 ```
 
 ---
 
-## Running the Server
+## API Endpoints
 
-Start the backend server:
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Health check |
+| POST | `/api/auth/...` | Authentication |
+| GET/POST | `/api/users/...` | User management |
+| GET/POST | `/api/bookings/...` | Booking management |
+| GET/POST | `/api/mechanics/...` | Mechanic dashboard |
+| GET/POST | `/api/jobs/...` | Job management |
+| GET/POST | `/api/payments/...` | Stripe payments |
+| GET/POST | `/api/tracking/...` | Real-time tracking |
+| GET/POST | `/api/tow-trucks/...` | Tow truck management |
+| GET/POST | `/api/service-history/...` | Service history |
+| GET/POST | `/api/ratings/...` | Ratings |
+| GET/POST | `/api/car-tips/...` | Car tips |
 
-```bash
-npm start
-```
+---
 
-For development mode (if using nodemon):
+## CI/CD
 
-```bash
-npm run dev
-```
+This project uses GitHub Actions for continuous integration and deployment.
 
-The server will start on the configured port.
+- **CI** — runs on every push and pull request to `main`: installs dependencies and checks for errors.
+- **CD** — on push to `main`: builds and pushes a Docker image to Docker Hub, then deploys to the server.
 
-# resQcar 
-*A location-based emergency mechanic and roadside assistance mobile application.*
-
-🔗 Live Demo: www.resqcar.com/ 
-
-Backend development for the **resQcar project**.
+See `.github/workflows/` for workflow definitions.
