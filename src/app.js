@@ -10,7 +10,10 @@ require('./config/firebase');
 const app = express();
 
 // Middlewares
-app.use(cors());
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',')
+  : ['http://localhost:3000', 'http://localhost:8081'];
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json());
 
 // Serve uploaded files statically
