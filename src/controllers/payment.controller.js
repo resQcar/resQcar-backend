@@ -47,14 +47,17 @@ exports.createPaymentIntent = async (req, res) => {
 // POST /api/payments/confirm
 exports.confirmPayment = async (req, res) => {
   try {
-    const { paymentIntentId } = req.body;
+    const { paymentIntentId, paymentMethodId } = req.body;
 
     if (!paymentIntentId) {
       return res.status(400).json({ success: false, error: 'Payment Intent ID is required' });
     }
+    if (!paymentMethodId) {
+      return res.status(400).json({ success: false, error: 'Payment Method ID is required' });
+    }
 
     const paymentIntent = await stripe.paymentIntents.confirm(paymentIntentId, {
-      payment_method: 'pm_card_visa',
+      payment_method: paymentMethodId,
     });
 
     if (paymentIntent.status === 'succeeded' || paymentIntent.status === 'requires_capture') {
