@@ -1,7 +1,8 @@
 // src/services/jobs.service.js
-const { db } = require('../config/firebase');
+const { db, admin } = require('../config/firebase');
 const path = require('path');
-const fs = require('fs');
+const fsp = require('fs').promises;
+const crypto = require('crypto');
 
 // Update job status - PUT /api/jobs/:id/status
 exports.updateJobStatus = async (jobId, status) => {
@@ -53,20 +54,20 @@ exports.requestAdditionalWork = async (jobId, description, estimatedCost) => {
 // Upload job photos - POST /api/jobs/:id/photos
 exports.uploadJobPhotos = async (jobId, files) => {
   const uploadDir = path.join(__dirname, '../../uploads/jobs', jobId);
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
+  await fsp.mkdir(uploadDir, { recursive: true });
+
   const photoUrls = [];
   for (const file of files) {
-    const filename = `${Date.now()}-${file.originalname}`;
-    const filepath = path.join(uploadDir, filename);
-    fs.writeFileSync(filepath, file.buffer);
-    photoUrls.push(`/uploads/jobs/${jobId}/${filename}`);
+    const uniqueName = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}-${file.originalname}`;
+    const filepath = path.join(uploadDir, uniqueName);
+    await fsp.writeFile(filepath, file.buffer);
+    photoUrls.push(`/uploads/jobs/${jobId}/${uniqueName}`);
   }
+
   const jobRef = db.collection('bookings').doc(jobId);
   await jobRef.update({
-    photos: photoUrls,
-    updatedAt: new Date().toISOString()
+    photos: admin.firestore.FieldValue.arrayUnion(...photoUrls),
+    updatedAt: new Date().toISOString(),
   });
   return photoUrls;
 };
