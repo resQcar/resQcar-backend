@@ -227,9 +227,6 @@ exports.submitRating = async (req, res) => {
     }
 
     // Save to Firestore ratings collection
-    const { db } = require('../config/firebase');
-    const admin = require('firebase-admin');
-
     const ratingRef = db.collection('ratings').doc();
     const ratingData = {
       id: ratingRef.id,
@@ -274,7 +271,6 @@ exports.getMechanicRatings = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Mechanic ID is required' });
     }
 
-    const { db } = require('../config/firebase');
     const snapshot = await db.collection('ratings')
       .where('mechanicId', '==', mechanicId)
       .orderBy('createdAt', 'desc')

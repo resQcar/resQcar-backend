@@ -301,8 +301,8 @@ exports.sendOtp = async (req, res) => {
       return res.status(400).json({ message: 'Phone must include country code (e.g. +94771234567).' });
     }
 
-    // Generate 6-digit OTP
-    const otp       = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate 6-digit OTP using cryptographically secure random
+    const otp       = crypto.randomInt(100000, 1000000).toString();
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     // Save hashed OTP to Firestore — never store plaintext

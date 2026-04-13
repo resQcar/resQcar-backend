@@ -6,6 +6,7 @@ const { getIO } = require('../websocket/socket');
 // Imanjith's function
 async function acceptOffer(req, res) {
   const { offerId } = req.params;
+  const mechanicId = req.user.uid;
   try {
     const result = await db.runTransaction(async (transaction) => {
       const offerRef = db.collection("offers").doc(offerId);
@@ -14,6 +15,9 @@ async function acceptOffer(req, res) {
         throw new Error("OFFER_NOT_FOUND");
       }
       const offer = offerSnap.data();
+      if (offer.mechanicId !== mechanicId) {
+        throw new Error("OFFER_NOT_FOR_YOU");
+      }
       if (offer.status !== "OFFERED") {
         throw new Error("OFFER_ALREADY_PROCESSED");
       }
@@ -70,6 +74,8 @@ async function acceptOffer(req, res) {
     console.error(error);
     if (error.message === "OFFER_NOT_FOUND")
       return res.status(404).json({ error: "Offer not found" });
+    if (error.message === "OFFER_NOT_FOR_YOU")
+      return res.status(403).json({ error: "This offer was not assigned to you" });
     if (error.message === "OFFER_ALREADY_PROCESSED")
       return res.status(409).json({ error: "Offer already processed" });
     if (error.message === "BOOKING_ALREADY_ASSIGNED")
@@ -83,7 +89,7 @@ async function updateJobStatus(req, res) {
   try {
     const jobId = req.params.id;
     const { status } = req.body;
-    const validStatuses = ['en-route', 'arrived', 'in-progress', 'completed', 'cancelled'];
+    const validStatuses = ['EN_ROUTE', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
     if (!status || !validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,

@@ -1,16 +1,6 @@
 // src/controllers/mechanics.controller.js
 const { db } = require('../config/firebase');
-
-function toRad(x) { return (x * Math.PI) / 180; }
-
-function distanceKm(a, b) {
-  const R = 6371;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const lat1 = toRad(a.lat), lat2 = toRad(b.lat);
-  const x = Math.sin(dLat/2)**2 + Math.sin(dLng/2)**2 * Math.cos(lat1) * Math.cos(lat2);
-  return 2 * R * Math.asin(Math.sqrt(x));
-}
+const { distanceKm } = require('../services/geo.service');
 
 // GET /api/mechanics/job-requests — mechanicId from token
 const getJobRequests = async (req, res) => {
