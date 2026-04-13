@@ -16,9 +16,13 @@ let io = null;
  * Called once from server.js
  */
 function initSocket(httpServer) {
+  const allowedOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',')
+    : ['http://localhost:3000', 'http://localhost:8081'];
+
   io = new Server(httpServer, {
     cors: {
-      origin: '*',
+      origin: allowedOrigins,
       methods: ['GET', 'POST'],
     },
   });
