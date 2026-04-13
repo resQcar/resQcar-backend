@@ -17,6 +17,12 @@ exports.requestTowTruck = async (req, res) => {
     if (!towTruckType || !validTypes.includes(towTruckType)) {
       return res.status(400).json({ success: false, message: `Tow truck type must be one of: ${validTypes.join(', ')}` });
     }
+    if (customerPhone !== undefined) {
+      const phoneStr = String(customerPhone).trim();
+      if (!/^\+[1-9]\d{6,14}$/.test(phoneStr)) {
+        return res.status(400).json({ success: false, message: 'customerPhone must be in E.164 format (e.g. +94771234567).' });
+      }
+    }
 
     const request = await towTruckService.createTowRequest({
       customerId, customerPhone, pickupLocation, dropoffLocation, vehicleDetails, towTruckType,
@@ -25,7 +31,7 @@ exports.requestTowTruck = async (req, res) => {
     res.status(201).json({ success: true, message: 'Tow truck request created successfully!', data: request });
   } catch (error) {
     console.error('Error in requestTowTruck:', error.message);
-    res.status(500).json({ success: false, message: 'Failed to create tow truck request', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to create tow truck request.' });
   }
 };
 
@@ -57,7 +63,7 @@ exports.getAvailableTowTrucks = async (req, res) => {
     });
   } catch (error) {
     console.error('Error in getAvailableTowTrucks:', error.message);
-    res.status(500).json({ success: false, message: 'Failed to fetch available tow trucks', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to fetch available tow trucks.' });
   }
 };
 
@@ -104,7 +110,7 @@ exports.acceptTowRequest = async (req, res) => {
     if (error.message.includes('not found')) {
       return res.status(404).json({ success: false, message: error.message });
     }
-    res.status(500).json({ success: false, message: 'Failed to accept tow request', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to accept tow request.' });
   }
 };
 
@@ -120,6 +126,6 @@ exports.getTowTruckProfile = async (req, res) => {
     res.status(200).json({ success: true, data: towTruck });
   } catch (error) {
     console.error('Error in getTowTruckProfile:', error.message);
-    res.status(500).json({ success: false, message: 'Failed to fetch tow truck profile', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to fetch tow truck profile.' });
   }
 };

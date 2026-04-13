@@ -116,7 +116,6 @@ async function updateJobStatus(req, res) {
     res.status(500).json({
       success: false,
       message: 'Failed to update job status',
-      error: error.message
     });
   }
 }
@@ -157,7 +156,6 @@ async function completeJob(req, res) {
     res.status(500).json({
       success: false,
       message: 'Failed to complete job',
-      error: error.message
     });
   }
 }
@@ -199,7 +197,6 @@ async function requestAdditionalWork(req, res) {
     res.status(500).json({
       success: false,
       message: 'Failed to request additional work',
-      error: error.message
     });
   }
 }
@@ -225,7 +222,6 @@ async function uploadJobPhotos(req, res) {
     res.status(500).json({
       success: false,
       message: 'Failed to upload photos',
-      error: error.message
     });
   }
 }

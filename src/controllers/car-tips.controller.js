@@ -30,7 +30,7 @@ exports.getTodaysTip = async (req, res) => {
     });
   } catch (err) {
     console.error('getTodaysTip error:', err.message);
-    return res.status(500).json({ message: 'Failed to fetch daily tip.', error: err.message });
+    return res.status(500).json({ message: 'Failed to fetch daily tip.' });
   }
 };
 
@@ -52,7 +52,7 @@ exports.getAllTips = async (req, res) => {
     return res.status(200).json({ tips, total: tips.length });
   } catch (err) {
     console.error('getAllTips error:', err.message);
-    return res.status(500).json({ message: 'Failed to fetch tips.', error: err.message });
+    return res.status(500).json({ message: 'Failed to fetch tips.' });
   }
 };
 
@@ -81,7 +81,7 @@ exports.addTip = async (req, res) => {
     return res.status(201).json({ message: 'Tip added.', id: ref.id });
   } catch (err) {
     console.error('addTip error:', err.message);
-    return res.status(500).json({ message: 'Failed to add tip.', error: err.message });
+    return res.status(500).json({ message: 'Failed to add tip.' });
   }
 };
 
@@ -105,7 +105,7 @@ exports.updateTip = async (req, res) => {
     return res.status(200).json({ message: 'Tip updated.' });
   } catch (err) {
     console.error('updateTip error:', err.message);
-    return res.status(500).json({ message: 'Failed to update tip.', error: err.message });
+    return res.status(500).json({ message: 'Failed to update tip.' });
   }
 };
 
@@ -121,6 +121,6 @@ exports.deleteTip = async (req, res) => {
     return res.status(200).json({ message: 'Tip deactivated.' });
   } catch (err) {
     console.error('deleteTip error:', err.message);
-    return res.status(500).json({ message: 'Failed to delete tip.', error: err.message });
+    return res.status(500).json({ message: 'Failed to delete tip.' });
   }
 };

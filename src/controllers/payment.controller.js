@@ -40,7 +40,7 @@ exports.createPaymentIntent = async (req, res) => {
     });
   } catch (error) {
     console.error('Stripe Error:', error);
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, message: 'Failed to create payment intent.' });
   }
 };
 
@@ -75,7 +75,7 @@ exports.confirmPayment = async (req, res) => {
     }
   } catch (error) {
     console.error('Stripe Error:', error);
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, message: 'Failed to confirm payment.' });
   }
 };
 
@@ -99,7 +99,7 @@ exports.getPaymentStatus = async (req, res) => {
     });
   } catch (error) {
     console.error('Stripe Error:', error);
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, message: 'Failed to retrieve payment status.' });
   }
 };
 
@@ -133,7 +133,7 @@ exports.getPaymentHistory = async (req, res) => {
     });
   } catch (error) {
     console.error('Stripe Error:', error);
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, message: 'Failed to retrieve payment history.' });
   }
 };
 
@@ -168,7 +168,7 @@ exports.getServiceHistoryCustomer = async (req, res) => {
     });
   } catch (error) {
     console.error('Stripe Error:', error);
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, message: 'Failed to retrieve customer service history.' });
   }
 };
 
@@ -203,7 +203,7 @@ exports.getServiceHistoryMechanic = async (req, res) => {
     });
   } catch (error) {
     console.error('Stripe Error:', error);
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, message: 'Failed to retrieve mechanic service history.' });
   }
 };
 
@@ -226,8 +226,21 @@ exports.submitRating = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Rating must be between 1 and 5' });
     }
 
-    // Save to Firestore ratings collection
+    // Prevent duplicate ratings for the same booking
+    if (bookingId) {
+      const existing = await db.collection('ratings')
+        .where('customerId', '==', customerId)
+        .where('bookingId', '==', bookingId)
+        .limit(1)
+        .get();
+      if (!existing.empty) {
+        return res.status(409).json({ success: false, message: 'You have already rated this booking.' });
+      }
+    }
+
+    // Save rating and update mechanic average inside a single transaction
     const ratingRef = db.collection('ratings').doc();
+    const mechanicRef = db.collection('mechanics').doc(resolvedMechanicId);
     const ratingData = {
       id: ratingRef.id,
       mechanicId: resolvedMechanicId,
@@ -237,12 +250,10 @@ exports.submitRating = async (req, res) => {
       comment: comment || '',
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     };
-    await ratingRef.set(ratingData);
 
-    // Update mechanic's average rating
-    const mechanicRef = db.collection('mechanics').doc(resolvedMechanicId);
     await db.runTransaction(async (tx) => {
       const mechDoc = await tx.get(mechanicRef);
+      tx.set(ratingRef, ratingData);
       if (mechDoc.exists) {
         const data = mechDoc.data();
         const count = (data.ratingCount || 0) + 1;
@@ -258,7 +269,7 @@ exports.submitRating = async (req, res) => {
     });
   } catch (error) {
     console.error('submitRating error:', error);
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, message: 'Failed to submit rating.' });
   }
 };
 
@@ -293,6 +304,6 @@ exports.getMechanicRatings = async (req, res) => {
     });
   } catch (error) {
     console.error('getMechanicRatings error:', error);
-    return res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, message: 'Failed to retrieve mechanic ratings.' });
   }
 };

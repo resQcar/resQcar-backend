@@ -124,10 +124,7 @@ exports.register = async (req, res) => {
     if (code === "auth/invalid-password") {
       return res.status(400).json({ message: "Password is invalid (min 6 chars)." });
     }
-    return res.status(500).json({
-      message: "Registration failed.",
-      error: String(err?.message || err),
-    });
+    return res.status(500).json({ message: "Registration failed." });
   }
 };
 
@@ -180,7 +177,7 @@ exports.login = async (req, res) => {
     if (msg.includes("USER_DISABLED")) {
       return res.status(403).json({ message: "User account is disabled." });
     }
-    return res.status(500).json({ message: "Login failed.", error: msg });
+    return res.status(500).json({ message: "Login failed." });
   }
 };
 
@@ -237,7 +234,7 @@ exports.googleAuth = async (req, res) => {
     if (msg.includes('Firebase ID token has expired')) {
       return res.status(401).json({ message: 'Google token expired. Please sign in again.' });
     }
-    return res.status(500).json({ message: 'Google authentication failed.', error: msg });
+    return res.status(500).json({ message: 'Google authentication failed.' });
   }
 };
 
@@ -281,10 +278,7 @@ exports.selectUserType = async (req, res) => {
       note: "Login again to get a new token containing updated userType claim.",
     });
   } catch (err) {
-    return res.status(500).json({
-      message: "Failed to update user type.",
-      error: String(err?.message || err),
-    });
+    return res.status(500).json({ message: "Failed to update user type." });
   }
 };
 // ---------- SEND OTP ----------
@@ -355,7 +349,7 @@ exports.sendOtp = async (req, res) => {
       return res.status(500).json({ message: 'Twilio credentials are incorrect. Check your .env file.' });
     }
 
-    return res.status(500).json({ message: 'Failed to send OTP.', error: String(err.message) });
+    return res.status(500).json({ message: 'Failed to send OTP.' });
   }
 };
 
@@ -389,8 +383,8 @@ exports.verifyOtp = async (req, res) => {
       return res.status(400).json({ message: 'Incorrect OTP. Please try again.' });
     }
 
-    // Mark as verified and clean up
-    await docRef.update({ verified: true });
+    // Delete OTP record — no longer needed after successful verification
+    await docRef.delete();
 
     return res.status(200).json({
       message: 'Phone number verified successfully.',
@@ -399,6 +393,6 @@ exports.verifyOtp = async (req, res) => {
     });
   } catch (err) {
     console.error('verifyOtp error:', err.message);
-    return res.status(500).json({ message: 'OTP verification failed.', error: String(err.message) });
+    return res.status(500).json({ message: 'OTP verification failed.' });
   }
 };

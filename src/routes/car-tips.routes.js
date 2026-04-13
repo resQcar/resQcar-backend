@@ -11,8 +11,8 @@ router.get('/today', requireAuth, ctrl.getTodaysTip);
 router.get('/', requireAuth, ctrl.getAllTips);
 
 // Admin only — add / edit / delete tips
-router.post('/', requireAuth, ctrl.addTip);
-router.patch('/:id', requireAuth, ctrl.updateTip);
-router.delete('/:id', requireAuth, ctrl.deleteTip);
+router.post('/', requireAuth, requireRole('admin'), ctrl.addTip);
+router.patch('/:id', requireAuth, requireRole('admin'), ctrl.updateTip);
+router.delete('/:id', requireAuth, requireRole('admin'), ctrl.deleteTip);
 
 module.exports = router;

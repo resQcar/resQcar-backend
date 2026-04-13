@@ -13,7 +13,7 @@ const getJobRequests = async (req, res) => {
       if (!data.mechanicId || data.mechanicId === mechanicId) jobRequests.push({ id: doc.id, ...data });
     });
     return res.status(200).json({ success: true, jobRequests });
-  } catch (error) { return res.status(500).json({ error: error.message }); }
+  } catch (error) { console.error('getJobRequests error:', error); return res.status(500).json({ error: 'Failed to retrieve job requests.' }); }
 };
 
 // GET /api/mechanics/active-jobs — mechanicId from token
@@ -25,7 +25,7 @@ const getActiveJobs = async (req, res) => {
     const activeJobs = [];
     snapshot.forEach(doc => activeJobs.push({ id: doc.id, ...doc.data() }));
     return res.status(200).json({ success: true, activeJobs });
-  } catch (error) { return res.status(500).json({ error: error.message }); }
+  } catch (error) { console.error('getActiveJobs error:', error); return res.status(500).json({ error: 'Failed to retrieve active jobs.' }); }
 };
 
 // GET /api/mechanics/dashboard — mechanicId from token
@@ -37,15 +37,15 @@ const getDashboardStats = async (req, res) => {
     const todayStart = new Date(); todayStart.setHours(0,0,0,0);
     snap.forEach(doc => {
       const data = doc.data(); completedJobs++;
-      const earning = data.finalAmount || data.estimatedAmount || 0;
+      const earning = Number(data.finalAmount || data.estimatedAmount || 0);
       totalEarnings += earning;
       const ca = data.completedAt?.toDate?.() || new Date(data.completedAt);
-      if (ca >= todayStart) todayEarnings += earning;
+      if (ca >= todayStart) todayEarnings += Number(earning);
       if (data.rating) { totalRating += data.rating; ratingCount++; }
     });
     const averageRating = ratingCount > 0 ? Math.round((totalRating/ratingCount)*10)/10 : 0;
     return res.status(200).json({ success: true, stats: { todayEarnings, totalEarnings, completedJobs, averageRating } });
-  } catch (error) { return res.status(500).json({ error: error.message }); }
+  } catch (error) { console.error('getDashboardStats error:', error); return res.status(500).json({ error: 'Failed to retrieve dashboard stats.' }); }
 };
 
 const getAvailableMechanics = async (req, res) => {
@@ -54,7 +54,7 @@ const getAvailableMechanics = async (req, res) => {
     const mechanics = [];
     snap.forEach(doc => mechanics.push({ id: doc.id, ...doc.data() }));
     return res.status(200).json({ success: true, count: mechanics.length, mechanics });
-  } catch (error) { return res.status(500).json({ error: error.message }); }
+  } catch (error) { console.error('getAvailableMechanics error:', error); return res.status(500).json({ error: 'Failed to retrieve available mechanics.' }); }
 };
 
 const getNearbyMechanics = async (req, res) => {
@@ -62,6 +62,9 @@ const getNearbyMechanics = async (req, res) => {
     const { lat, lng, radiusKm = '10' } = req.query;
     const radius = parseFloat(radiusKm);
     if (!lat || !lng) return res.status(400).json({ error: 'lat and lng are required as query params' });
+    if (isNaN(radius) || radius <= 0 || radius > 100) {
+      return res.status(400).json({ error: 'radiusKm must be a number between 0 and 100' });
+    }
     const userLocation = { lat: parseFloat(lat), lng: parseFloat(lng) };
     const snap = await db.collection('mechanics').where('isAvailable','==',true).where('isOnline','==',true).get();
     const nearby = [];
@@ -74,7 +77,7 @@ const getNearbyMechanics = async (req, res) => {
     });
     nearby.sort((a,b) => a.distanceKm - b.distanceKm);
     return res.status(200).json({ success: true, count: nearby.length, mechanics: nearby });
-  } catch (error) { return res.status(500).json({ error: error.message }); }
+  } catch (error) { console.error('getNearbyMechanics error:', error); return res.status(500).json({ error: 'Failed to retrieve nearby mechanics.' }); }
 };
 
 const getMechanicProfile = async (req, res) => {
@@ -88,7 +91,7 @@ const getMechanicProfile = async (req, res) => {
       location: m.location||null, specializations: m.specializations||[],
       ratingAvg: m.ratingAvg||0, ratingCount: m.ratingCount||0,
     }});
-  } catch (error) { return res.status(500).json({ error: error.message }); }
+  } catch (error) { console.error('getMechanicProfile error:', error); return res.status(500).json({ error: 'Failed to retrieve mechanic profile.' }); }
 };
 
 const getMechanicSpecializations = async (req, res) => {
@@ -96,7 +99,7 @@ const getMechanicSpecializations = async (req, res) => {
     const doc = await db.collection('mechanics').doc(req.params.id).get();
     if (!doc.exists) return res.status(404).json({ error: 'Mechanic not found' });
     return res.status(200).json({ success: true, mechanicId: req.params.id, specializations: doc.data().specializations||[] });
-  } catch (error) { return res.status(500).json({ error: error.message }); }
+  } catch (error) { console.error('getMechanicSpecializations error:', error); return res.status(500).json({ error: 'Failed to retrieve specializations.' }); }
 };
 
 // GET /api/mechanics/profile — returns the logged-in mechanic's own profile
@@ -113,7 +116,7 @@ const getMyProfile = async (req, res) => {
       ratingAvg: m.ratingAvg||0, ratingCount: m.ratingCount||0,
       garageName: m.garageName||'', profileImageUrl: m.profileImageUrl||'',
     }});
-  } catch (error) { return res.status(500).json({ error: error.message }); }
+  } catch (error) { console.error('getMyProfile error:', error); return res.status(500).json({ error: 'Failed to retrieve profile.' }); }
 };
 
 // PUT /api/mechanics/availability — mechanicId from token (SECURITY FIX)
@@ -130,7 +133,7 @@ const updateMechanicAvailability = async (req, res) => {
     if (hasIsOnline)    updateData.isOnline    = isOnline;
     await db.collection('mechanics').doc(mechanicId).set(updateData, { merge: true });
     return res.status(200).json({ ok: true, mechanicId, ...updateData });
-  } catch (error) { return res.status(500).json({ error: error.message }); }
+  } catch (error) { console.error('updateMechanicAvailability error:', error); return res.status(500).json({ error: 'Failed to update availability.' }); }
 };
 
 // PUT /api/mechanics/profile — mechanicId from token (SECURITY FIX)
@@ -153,7 +156,7 @@ const updateMechanicProfile = async (req, res) => {
     if (Object.keys(updateData).length === 1) return res.status(400).json({ error: 'No valid fields to update' });
     await db.collection('mechanics').doc(mechanicId).set(updateData, { merge: true });
     return res.status(200).json({ ok: true, mechanicId, updated: updateData });
-  } catch (error) { return res.status(500).json({ error: error.message }); }
+  } catch (error) { console.error('updateMechanicProfile error:', error); return res.status(500).json({ error: 'Failed to update profile.' }); }
 };
 
 module.exports = {

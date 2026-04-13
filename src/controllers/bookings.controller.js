@@ -90,7 +90,7 @@ const getJobById = async (req, res) => {
     return res.status(200).json({ success: true, job: { id: doc.id, ...doc.data() } });
   } catch (error) {
     console.error('getJobById error:', error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to retrieve job.' });
   }
 };
 
@@ -139,7 +139,7 @@ const acceptJob = async (req, res) => {
     return res.status(200).json({ success: true, message: 'Job accepted successfully' });
   } catch (error) {
     console.error('acceptJob error:', error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to accept job.' });
   }
 };
 
@@ -166,7 +166,7 @@ const rejectJob = async (req, res) => {
     return res.status(200).json({ success: true, message: 'Job rejected' });
   } catch (error) {
     console.error('rejectJob error:', error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to reject job.' });
   }
 };
 
@@ -224,7 +224,7 @@ const updateJobStatus = async (req, res) => {
     return res.status(200).json({ success: true, message: `Job status updated to: ${status}` });
   } catch (error) {
     console.error('updateJobStatus error:', error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to update job status.' });
   }
 };
 
@@ -272,7 +272,7 @@ const addAdditionalWork = async (req, res) => {
     });
   } catch (error) {
     console.error('addAdditionalWork error:', error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to report additional work.' });
   }
 };
 
@@ -313,7 +313,7 @@ const arriveAtJob = async (req, res) => {
     return res.status(200).json({ success: true, message: 'Arrival confirmed' });
   } catch (error) {
     console.error('arriveAtJob error:', error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to confirm arrival.' });
   }
 };
 
@@ -341,7 +341,7 @@ const completeJob = async (req, res) => {
 
     await jobRef.update({
       status:      'COMPLETED',
-      finalAmount: finalAmount || jobData.estimatedAmount || 0,
+      finalAmount: (finalAmount !== undefined && finalAmount !== null) ? finalAmount : (jobData.estimatedAmount || 0),
       completedAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt:   admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -359,7 +359,7 @@ const completeJob = async (req, res) => {
     return res.status(200).json({ success: true, message: 'Job completed successfully' });
   } catch (error) {
     console.error('completeJob error:', error);
-    return res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: 'Failed to complete job.' });
   }
 };
 
