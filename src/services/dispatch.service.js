@@ -17,19 +17,16 @@ async function dispatchToMechanics({
     .where('isOnline', '==', true)
     .get();
 
-  console.log('Total mechanics from Firestore:', snap.size);
-
   const mechanics = [];
 
   snap.forEach((doc) => {
-    console.log('Checking mechanic:', doc.id, doc.data());
     const m = doc.data();
 
     if (Array.isArray(m.specializations) && !m.specializations.includes(issueType)) {
       return;
     }
 
-    if (m.location?.lat && m.location?.lng) {
+    if (m.location?.lat != null && m.location?.lng != null) {
       const d = distanceKm(location, m.location);
       if (d <= radiusKm) mechanics.push({ id: doc.id, ...m, _distanceKm: d });
     }
